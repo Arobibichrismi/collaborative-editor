@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CollabX - Secure Collaborative Code Editor</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.js"></script>
+
+<style>
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #0d1117;
+  color: #c9d1d9;
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+}
+#code-editor {
+  height: 100%;
+  width: 100%;
+}
+/* FIX: Added a small style for chat message layout */
+.chat-msg { margin-bottom: 4px; font-size: 0.875rem; border-bottom: 1px solid #30363d; padding-bottom: 2px; }
+</style>
+</head>
+
+<body class="flex flex-col h-screen overflow-hidden">
+
+<div class="flex flex-1 flex-col md:flex-row p-4 md:space-x-4 overflow-hidden">
+
+  <div class="flex-1 flex flex-col space-y-4">
+
+    <header class="flex justify-between items-center bg-[#161b22] p-4 rounded-xl">
+      <h1 class="text-xl font-semibold">
+        CollabX <span class="text-blue-400">Workspace</span>
+      </h1>
+
+      <div class="flex items-center space-x-3">
+        <select id="language-select" class="bg-[#0d1117] border border-[#30363d] text-sm rounded px-2 py-1">
+          <option value="python">Python</option>
+          <option value="c">C</option>
+          <option value="cpp">C++</option>
+          <option value="java">Java</option>
+        </select>
+
+        <span id="role-display" class="bg-[#30363d] text-sm px-3 py-1 rounded-full">
+          Role: Viewer
+        </span>
+        <label for="file-upload" class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg cursor-pointer text-sm transition">
+  📁 Upload
+</label>
+<input type="file" id="file-upload" class="hidden" accept=".py,.c,.cpp,.java,.txt" />
+
+        <button id="run-button" class="bg-emerald-600 px-4 py-2 rounded-lg hover:bg-emerald-700 transition">
+          Run Code
+        </button>
+        <button id="ai-button" class="bg-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+          AI Debugger
+        </button>
+      </div>
+    </header>
+
+    <div class="flex-1 bg-[#161b22] p-4 rounded-xl overflow-hidden">
+      <div id="code-editor"></div>
+    </div>
+
+    <div class="bg-[#161b22] p-4 rounded-xl h-40">
+      <pre id="output-console" class="h-full overflow-y-auto font-mono text-sm text-gray-300"></pre>
+    </div>
+  </div>
+
+  <div class="w-full md:w-80 flex flex-col space-y-4 mt-4 md:mt-0">
+
+    <div class="flex-1 flex flex-col bg-[#161b22] p-4 rounded-xl overflow-hidden">
+      <h2 class="mb-2 font-bold border-b border-[#30363d] pb-2">Chat</h2>
+      <div id="chat-messages" class="flex-1 overflow-y-auto mb-2 space-y-1"></div>
+      <div class="flex space-x-2">
+        <input id="chat-input" class="flex-1 bg-[#0d1117] border border-[#30363d] p-2 rounded text-sm focus:outline-none focus:border-blue-500" placeholder="Type a message..." />
+        <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-700 px-3 rounded text-sm transition">
+          Send
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-[#161b22] p-4 rounded-xl">
+      <h2 class="mb-2 font-bold border-b border-[#30363d] pb-2">Participants</h2>
+      <ul id="user-list" class="text-sm space-y-1 mt-2"></ul>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+
+// FIX: Defaulted to localhost for easier local development. Change this when deploying.
+const SERVER_HOST = window.location.hostname === "localhost" ? "localhost:8000" : "gasless-jair-mangily.ngrok-free.dev";
+const PROTOCOL = window.location.protocol === "https:" ? "wss" : "ws";
+const wsUrl = `${PROTOCOL}://${SERVER_HOST}`;
+
+/* ================= STATE ================= */
+
+let role = "Viewer";
+let currentUserId = null;
+let currentVersion = 0;
+// FIX: Added a flag to prevent the editor from sending a message when it receives one (Infinite loop fix)
+let isApplyingRemoteUpdate = false;
+
+/* ================= FILE UPLOAD ================= */
+
+const fileUpload = document.getElementById("file-upload");
+
+fileUpload.addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    const content = e.target.result;
+    
+    // 1. Update the editor content
+    editor.setValue(content, -1);
+
+    // 2. Detect extension and update language dropdown + Editor mode
+    const extension = file.name.split('.').pop().toLowerCase();
+    updateLanguageFromExtension(extension);
+
+    // 3. Trigger a sync so other users see the uploaded code
+    ws.send(JSON.stringify({
+      type: "code_update",
+      content: content,
+      version: currentVersion
+    }));
+    
+    console.log(`Uploaded: ${file.name}`);
+  };
+
+  reader.readAsText(file);
+});
+
+// Helper to switch language automatically
+function updateLanguageFromExtension(ext) {
+  const modeMap = {
+    'py': 'python',
+    'c': 'c',
+    'cpp': 'cpp',
+    'java': 'java'
+  };
+
+  const lang = modeMap[ext] || 'python';
+  langSelect.value = lang; // Change the dropdown
+  editor.session.setMode(`ace/mode/${lang === 'cpp' ? 'c_cpp' : lang}`); // Change Ace highlighting
+}
+
+/* ================= ELEMENTS ================= */
+
+const outputConsole = document.getElementById("output-console");
+const chatMessages = document.getElementById("chat-messages");
+const chatInput = document.getElementById("chat-input");
+const userList = document.getElementById("user-list");
+const roleDisplay = document.getElementById("role-display");
+const runButton = document.getElementById("run-button");
+const aiButton = document.getElementById("ai-button");
+const langSelect = document.getElementById("language-select");
+
+/* ================= ACE EDITOR ================= */
+
+const editor = ace.edit("code-editor");
+editor.setTheme("ace/theme/monokai");
+editor.session.setMode("ace/mode/python");
+editor.setOptions({ fontSize: "14px", wrap: true });
+editor.setValue("", -1);
+
+/* ================= WEBSOCKET ================= */
+
+const ws = new WebSocket(wsUrl);
+
+ws.onopen = () => console.log("Connected to", wsUrl);
+ws.onclose = () => console.log("Disconnected from server");
+ws.onerror = (e) => console.error("WS Error", e);
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+
+  switch (data.type) {
+
+    case "user_role":
+      role = data.role;
+      currentUserId = data.id;
+      roleDisplay.textContent = `Role: ${role}`;
+      editor.setReadOnly(role === "Viewer");
+      break;
+
+    case "code_update":
+      // FIX: Always update the local version number to match the server
+      currentVersion = data.version;
+
+      // FIX: If we sent this update, don't re-apply it to the editor
+      if (data.senderId === currentUserId) return;
+
+      // FIX: Set flag to true so the 'change' event doesn't trigger a websocket send
+      isApplyingRemoteUpdate = true;
+      const cursor = editor.getCursorPosition();
+      editor.setValue(data.content || "", -1);
+      editor.moveCursorToPosition(cursor);
+      isApplyingRemoteUpdate = false;
+      break;
+
+    case "chat_message":
+      appendMessage(data.user, data.message);
+      break;
+
+    case "user_list":
+      updateUserList(data.users);
+      break;
+
+    case "execution_result":
+      runButton.disabled = false;
+      outputConsole.textContent = data.output;
+      break;
+
+    case "ai_suggestion":
+      aiButton.disabled = false;
+      outputConsole.textContent = data.suggestion;
+      break;
+
+    case "error":
+      runButton.disabled = false;
+      aiButton.disabled = false;
+      // FIX: Log error to console instead of just alert to avoid interrupting the user
+      console.error("Server Error:", data.message);
+      if(data.message.includes("Version conflict")) {
+          console.warn("Attempting to resync...");
+      }
+      break;
+  }
+};
+
+/* ================= EDITOR SYNC ================= */
+
+let typingTimer;
+editor.session.on("change", () => {
+  // FIX: Don't send anything if the change came from the server OR if we are just a viewer
+  if (role === "Viewer" || isApplyingRemoteUpdate) return;
+
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => {
+    ws.send(JSON.stringify({
+      type: "code_update",
+      content: editor.getValue(),
+      version: currentVersion
+    }));
+  }, 300);
+});
+
+/* ================= ACTIONS ================= */
+
+runButton.onclick = () => {
+  if (role === "Viewer") return alert("Only Editors/Owners can run code.");
+  runButton.disabled = true;
+  outputConsole.textContent = "Running code in sandbox...";
+  ws.send(JSON.stringify({
+    type: "run_code",
+    language: langSelect.value,
+    code: editor.getValue()
+  }));
+};
+
+aiButton.onclick = () => {
+  aiButton.disabled = true;
+  outputConsole.textContent = "Asking AI for suggestions...";
+  ws.send(JSON.stringify({
+    type: "ask_ai",
+    code: editor.getValue()
+  }));
+};
+
+// FIX: Added Enter key listener for chat
+chatInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") sendMessage();
+});
+
+function sendMessage() {
+  const msg = chatInput.value.trim();
+  if (!msg) return;
+  ws.send(JSON.stringify({ type: "chat_message", message: msg }));
+  chatInput.value = "";
+}
+
+/* ================= HELPERS ================= */
+
+function appendMessage(user, msg) {
+  const div = document.createElement("div");
+  div.className = "chat-msg";
+  // FIX: Used innerHTML with bolding for better readability
+  div.innerHTML = `<span class="text-blue-400 font-bold">${user}:</span> <span class="text-gray-200">${msg}</span>`;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function updateUserList(users) {
+  userList.innerHTML = "";
+  users.forEach(u => {
+    const li = document.createElement("li");
+    li.className = "flex items-center space-x-2";
+    // FIX: Added a green dot for online users
+    li.innerHTML = `<span class="h-2 w-2 bg-green-500 rounded-full"></span> <span>${u.name} (${u.role})</span>`;
+    userList.appendChild(li);
+  });
+}
+</script>
+</body>
+</html>

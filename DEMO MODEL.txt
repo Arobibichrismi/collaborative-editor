@@ -1,0 +1,16 @@
+#include <stdio.h>
+
+int main() {
+    printf("\n");
+    printf("*********************************************\n");
+    printf("*                                           *\n");
+    printf("*   R E M O T E   C O L L A B O R A T I O N *\n");
+    printf("*                                           *\n");
+    printf("*               W O R K S P A C E           *\n");
+    printf("*                                           *\n");
+    printf("*              - BIBI & SRIRAM              *\n");
+    printf("*                                           *\n");
+    printf("*********************************************\n");
+    printf("\n");
+    return 0;
+}
