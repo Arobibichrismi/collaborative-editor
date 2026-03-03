@@ -4,29 +4,166 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>CollabX - Secure Collaborative Code Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <style>
+:root {
+  --bg-1: #071226;
+  --bg-2: #0a1b33;
+  --panel: rgba(12, 24, 45, 0.7);
+  --panel-border: rgba(123, 158, 214, 0.2);
+  --text-main: #eaf2ff;
+  --text-muted: #9db2d1;
+  --google-blue: #4285f4;
+  --google-green: #34a853;
+  --google-yellow: #fbbc05;
+  --google-red: #ea4335;
+}
+
 body {
-  font-family: 'Inter', sans-serif;
-  background-color: #0d1117;
-  color: #c9d1d9;
+  font-family: 'Manrope', sans-serif;
+  background:
+    radial-gradient(900px 500px at -10% -20%, rgba(66, 133, 244, 0.24), transparent 60%),
+    radial-gradient(700px 420px at 110% -5%, rgba(52, 168, 83, 0.18), transparent 60%),
+    linear-gradient(160deg, var(--bg-1), var(--bg-2) 60%);
+  color: var(--text-main);
   margin: 0;
   padding: 0;
   height: 100vh;
+  overflow: hidden;
 }
 #code-editor {
   height: 100%;
   width: 100%;
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px rgba(146, 178, 227, 0.14);
 }
 /* FIX: Added a small style for chat message layout */
-.chat-msg { margin-bottom: 4px; font-size: 0.875rem; border-bottom: 1px solid #30363d; padding-bottom: 2px; }
+.chat-msg {
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  border-bottom: 1px solid rgba(145, 172, 212, 0.2);
+  padding-bottom: 6px;
+}
+.presence-note { color: #8b949e; font-size: 0.7rem; }
+.remote-cursor-label { border-radius: 4px; opacity: 0.9; }
+.history-item { border-bottom: 1px dashed rgba(145, 172, 212, 0.22); padding: 6px 0; }
+.history-time { color: #8fb0df; font-size: 0.72rem; }
+.history-details { color: #e4eeff; font-size: 0.8rem; }
+
+header, .bg-\[\#161b22\], .bg-\[\#0d1117\] {
+  background: var(--panel) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--panel-border);
+}
+
+#role-display {
+  background: rgba(66, 133, 244, 0.18) !important;
+  border: 1px solid rgba(66, 133, 244, 0.35);
+}
+
+h1, h2 {
+  letter-spacing: 0.2px;
+}
+
+h1 span.text-blue-400 {
+  color: #84b8ff !important;
+}
+
+#run-button {
+  background: linear-gradient(135deg, #1fca74, #149f5a) !important;
+  box-shadow: 0 8px 24px rgba(26, 167, 92, 0.28);
+}
+
+#ai-button {
+  background: linear-gradient(135deg, #478cff, #5b6dff) !important;
+  box-shadow: 0 8px 24px rgba(71, 140, 255, 0.3);
+}
+
+#apply-ai-fix-button {
+  background: linear-gradient(135deg, #ffcf40, #f7a31f) !important;
+  color: #2a1d00;
+  font-weight: 800;
+}
+
+#run-button, #ai-button, #apply-ai-fix-button {
+  transform: translateY(0);
+  transition: transform 0.18s ease, filter 0.2s ease;
+}
+
+#run-button:hover, #ai-button:hover, #apply-ai-fix-button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+#output-console {
+  font-family: 'JetBrains Mono', monospace;
+  background:
+    linear-gradient(to right, rgba(66, 133, 244, 0.08), transparent 30%),
+    rgba(6, 16, 34, 0.7);
+  border-radius: 12px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+}
+
+#chat-input, #language-select, #login-username, #login-password {
+  border-color: rgba(134, 165, 214, 0.35) !important;
+  background: rgba(6, 16, 34, 0.7) !important;
+}
+
+#auth-modal > div {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(66, 133, 244, 0.24), transparent 35%),
+    radial-gradient(circle at 100% 100%, rgba(251, 188, 5, 0.2), transparent 35%),
+    rgba(10, 20, 40, 0.94) !important;
+  border: 1px solid rgba(132, 168, 223, 0.35) !important;
+  box-shadow: 0 24px 60px rgba(2, 8, 20, 0.6);
+}
+
+#auth-modal button {
+  background: linear-gradient(135deg, var(--google-blue), #6f8bff) !important;
+  font-weight: 700;
+}
+
+.flex-1.bg-\[\#161b22\], .bg-\[\#161b22\].p-4.rounded-xl, .bg-\[\#161b22\].p-4.rounded-xl.h-40 {
+  box-shadow: 0 12px 28px rgba(0, 8, 22, 0.35);
+}
+
+@keyframes floatPulse {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+header {
+  animation: floatPulse 6s ease-in-out infinite;
+}
 </style>
 </head>
 
 <body class="flex flex-col h-screen overflow-hidden">
+
+<div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+  <div class="w-full max-w-sm bg-[#161b22] border border-[#30363d] rounded-xl p-5 space-y-3">
+    <h2 class="text-lg font-semibold">Login</h2>
+    <p class="text-xs text-gray-400">Use workspace credentials to join the session.</p>
+    <input id="login-username" class="w-full bg-[#0d1117] border border-[#30363d] p-2 rounded text-sm" placeholder="Username" />
+    <input id="login-password" type="password" class="w-full bg-[#0d1117] border border-[#30363d] p-2 rounded text-sm" placeholder="Password" />
+    <button id="login-button" class="w-full bg-blue-600 hover:bg-blue-700 rounded p-2 text-sm">Login</button>
+    <p id="login-status" class="text-xs text-red-400 min-h-4"></p>
+    <p class="text-xs text-gray-500">Default demo users: owner / editor / viewer</p>
+  </div>
+</div>
 
 <div class="flex flex-1 flex-col md:flex-row p-4 md:space-x-4 overflow-hidden">
 
@@ -56,8 +193,14 @@ body {
         <button id="run-button" class="bg-emerald-600 px-4 py-2 rounded-lg hover:bg-emerald-700 transition">
           Run Code
         </button>
+        <button id="download-report-button" class="bg-[#30363d] hover:bg-[#44536a] px-4 py-2 rounded-lg transition text-sm">
+          Download PDF
+        </button>
         <button id="ai-button" class="bg-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
           AI Debugger
+        </button>
+        <button id="apply-ai-fix-button" class="hidden bg-amber-600 px-4 py-2 rounded-lg hover:bg-amber-700 transition">
+          Apply AI Fix
         </button>
       </div>
     </header>
@@ -78,6 +221,9 @@ body {
       <div id="chat-messages" class="flex-1 overflow-y-auto mb-2 space-y-1"></div>
       <div class="flex space-x-2">
         <input id="chat-input" class="flex-1 bg-[#0d1117] border border-[#30363d] p-2 rounded text-sm focus:outline-none focus:border-blue-500" placeholder="Type a message..." />
+        <button id="history-button" class="bg-[#30363d] hover:bg-[#44536a] px-3 rounded text-sm transition" title="View logs" aria-label="View logs">
+          &#x1F552;
+        </button>
         <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-700 px-3 rounded text-sm transition">
           Send
         </button>
@@ -92,11 +238,25 @@ body {
   </div>
 </div>
 
+<div id="history-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+  <div class="w-full max-w-2xl bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-bold">Activity Logs</h2>
+      <button id="history-close" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-1 rounded text-sm">Close</button>
+    </div>
+    <div id="history-modal-list" class="h-80 overflow-y-auto text-xs space-y-1 pr-1"></div>
+  </div>
+</div>
+
 <script>
 /* ================= CONFIG ================= */
 
-// FIX: Defaulted to localhost for easier local development. Change this when deploying.
-const SERVER_HOST = window.location.hostname === "localhost" ? "localhost:8000" : "gasless-jair-mangily.ngrok-free.dev";
+// Prefer local websocket when running locally (localhost/127.0.0.1/file://).
+const localHosts = new Set(["", "localhost", "127.0.0.1", "::1"]);
+const currentHost = window.location.hostname || "127.0.0.1";
+const SERVER_HOST = localHosts.has(window.location.hostname)
+  ? `${currentHost}:8000`
+  : "gasless-jair-mangily.ngrok-free.dev";
 const PROTOCOL = window.location.protocol === "https:" ? "wss" : "ws";
 const wsUrl = `${PROTOCOL}://${SERVER_HOST}`;
 
@@ -105,6 +265,17 @@ const wsUrl = `${PROTOCOL}://${SERVER_HOST}`;
 let role = "Viewer";
 let currentUserId = null;
 let currentVersion = 0;
+let pendingAiCode = null;
+let isAuthenticated = false;
+let latestUsers = [];
+let historyEntries = [];
+let lastLocalChangePreview = "Code updated";
+const collaboratorPresence = new Map();
+const collaboratorCursorMarkers = new Map();
+const collaboratorPalette = ["#58a6ff", "#3fb950", "#d29922", "#f778ba", "#a371f7", "#ff7b72"];
+const collaboratorStyleSet = new Set();
+const activityMarkerTimeouts = new Map();
+let isRetryingAfterConflict = false;
 // FIX: Added a flag to prevent the editor from sending a message when it receives one (Infinite loop fix)
 let isApplyingRemoteUpdate = false;
 
@@ -113,6 +284,11 @@ let isApplyingRemoteUpdate = false;
 const fileUpload = document.getElementById("file-upload");
 
 fileUpload.addEventListener("change", (event) => {
+  if (!isAuthenticated || role === "Viewer") {
+    outputConsole.textContent = "Only Owner/Editor can upload and modify code.";
+    event.target.value = "";
+    return;
+  }
   const file = event.target.files[0];
   if (!file) return;
 
@@ -132,7 +308,8 @@ fileUpload.addEventListener("change", (event) => {
     ws.send(JSON.stringify({
       type: "code_update",
       content: content,
-      version: currentVersion
+      version: currentVersion,
+      change_meta: { preview: `Uploaded file: ${file.name}` }
     }));
     
     console.log(`Uploaded: ${file.name}`);
@@ -162,36 +339,258 @@ const chatMessages = document.getElementById("chat-messages");
 const chatInput = document.getElementById("chat-input");
 const userList = document.getElementById("user-list");
 const roleDisplay = document.getElementById("role-display");
+const historyButton = document.getElementById("history-button");
+const historyModal = document.getElementById("history-modal");
+const historyClose = document.getElementById("history-close");
+const historyModalList = document.getElementById("history-modal-list");
 const runButton = document.getElementById("run-button");
+const downloadReportButton = document.getElementById("download-report-button");
 const aiButton = document.getElementById("ai-button");
+const applyAiFixButton = document.getElementById("apply-ai-fix-button");
 const langSelect = document.getElementById("language-select");
+const authModal = document.getElementById("auth-modal");
+const loginUsername = document.getElementById("login-username");
+const loginPassword = document.getElementById("login-password");
+const loginButton = document.getElementById("login-button");
+const loginStatus = document.getElementById("login-status");
 
 /* ================= ACE EDITOR ================= */
 
 const editor = ace.edit("code-editor");
+const AceRange = ace.require("ace/range").Range;
+const collaboratorStyleTag = document.createElement("style");
+document.head.appendChild(collaboratorStyleTag);
 editor.setTheme("ace/theme/monokai");
 editor.session.setMode("ace/mode/python");
 editor.setOptions({ fontSize: "14px", wrap: true });
 editor.setValue("", -1);
+editor.setReadOnly(true);
+
+function setAuthenticatedUI(enabled) {
+  isAuthenticated = enabled;
+  editor.setReadOnly(!enabled || role === "Viewer");
+  const canExecute = enabled && role !== "Viewer";
+  runButton.disabled = !canExecute;
+  aiButton.disabled = !canExecute;
+  if (!enabled) {
+    applyAiFixButton.classList.add("hidden");
+  }
+}
+
+function hashUserId(userId) {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i += 1) {
+    hash = ((hash << 5) - hash) + userId.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function sanitizeUserClass(userId) {
+  return userId.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
+function ensureCollaboratorStyles(userId, color) {
+  const safe = sanitizeUserClass(userId);
+  if (collaboratorStyleSet.has(safe)) return safe;
+  collaboratorStyleSet.add(safe);
+  collaboratorStyleTag.textContent += `
+    .remote-cursor-${safe} {
+      position: absolute;
+      background: ${color};
+      width: 2px !important;
+      z-index: 20;
+    }
+    .remote-edit-${safe} {
+      position: absolute;
+      background: ${color}44;
+      border-bottom: 1px solid ${color};
+    }
+  `;
+  return safe;
+}
+
+function collaboratorColor(userId) {
+  return collaboratorPalette[hashUserId(userId) % collaboratorPalette.length];
+}
+
+function removeCollaboratorCursor(userId) {
+  const markerId = collaboratorCursorMarkers.get(userId);
+  if (markerId !== undefined) {
+    editor.session.removeMarker(markerId);
+    collaboratorCursorMarkers.delete(userId);
+  }
+  collaboratorPresence.delete(userId);
+}
+
+function clearCollaboratorVisuals() {
+  Array.from(collaboratorCursorMarkers.keys()).forEach((uid) => removeCollaboratorCursor(uid));
+  collaboratorPresence.clear();
+}
+
+function applyCollaboratorCursor(userId, userName, position) {
+  const row = Math.max(0, Number(position?.row || 0));
+  const column = Math.max(0, Number(position?.column || 0));
+  if (userId === currentUserId) {
+    collaboratorPresence.set(userId, { row, column, userName: userName || "You" });
+    return;
+  }
+  const color = collaboratorColor(userId);
+  const safe = ensureCollaboratorStyles(userId, color);
+
+  removeCollaboratorCursor(userId);
+  const cursorRange = new AceRange(row, column, row, column + 1);
+  const markerId = editor.session.addMarker(cursorRange, `remote-cursor-${safe}`, "text", true);
+  collaboratorCursorMarkers.set(userId, markerId);
+  collaboratorPresence.set(userId, { row, column, userName });
+}
+
+function applyEditActivity(userId, editRange) {
+  if (!editRange || userId === currentUserId) return;
+  const start = editRange.start || {};
+  const end = editRange.end || {};
+  const startRow = Math.max(0, Number(start.row || 0));
+  const startCol = Math.max(0, Number(start.column || 0));
+  const endRow = Math.max(startRow, Number(end.row || startRow));
+  const endCol = Math.max(startCol + 1, Number(end.column || startCol + 1));
+
+  const color = collaboratorColor(userId);
+  const safe = ensureCollaboratorStyles(userId, color);
+  const range = new AceRange(startRow, startCol, endRow, endCol);
+  const markerId = editor.session.addMarker(range, `remote-edit-${safe}`, "text", false);
+
+  const key = `${userId}-${Date.now()}`;
+  const timeoutId = setTimeout(() => {
+    editor.session.removeMarker(markerId);
+    activityMarkerTimeouts.delete(key);
+  }, 1200);
+  activityMarkerTimeouts.set(key, timeoutId);
+}
+
+function attemptLogin() {
+  const username = loginUsername.value.trim();
+  const password = loginPassword.value;
+  if (!username || !password) {
+    loginStatus.textContent = "Enter username and password.";
+    return;
+  }
+  if (ws.readyState !== WebSocket.OPEN) {
+    loginStatus.textContent = "Server not connected yet.";
+    return;
+  }
+  loginButton.disabled = true;
+  loginStatus.textContent = "Authenticating...";
+  ws.send(JSON.stringify({
+    type: "auth",
+    username,
+    password
+  }));
+}
+
+function formatHistoryTime(ts) {
+  try {
+    const d = new Date(ts);
+    return d.toLocaleTimeString();
+  } catch {
+    return ts || "";
+  }
+}
+
+function renderHistory(entries) {
+  const emptyHtml = `<div class="history-time">No edits yet.</div>`;
+  historyModalList.innerHTML = "";
+  if (!entries || !entries.length) {
+    historyModalList.innerHTML = emptyHtml;
+    return;
+  }
+  entries.slice().reverse().forEach((entry) => {
+    const item = document.createElement("div");
+    item.className = "history-item";
+    item.innerHTML = `
+      <div class="history-time">${formatHistoryTime(entry.timestamp)} • ${entry.user} • ${entry.action}</div>
+      <div class="history-details">${entry.details || ""}</div>
+    `;
+    historyModalList.appendChild(item);
+  });
+}
+
+loginButton.addEventListener("click", attemptLogin);
+loginPassword.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") attemptLogin();
+});
+historyButton.addEventListener("click", () => {
+  historyModal.classList.remove("hidden");
+  renderHistory(historyEntries);
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "request_history" }));
+  }
+});
+historyClose.addEventListener("click", () => {
+  historyModal.classList.add("hidden");
+});
+historyModal.addEventListener("click", (e) => {
+  if (e.target === historyModal) historyModal.classList.add("hidden");
+});
+
+setAuthenticatedUI(false);
 
 /* ================= WEBSOCKET ================= */
 
 const ws = new WebSocket(wsUrl);
 
-ws.onopen = () => console.log("Connected to", wsUrl);
-ws.onclose = () => console.log("Disconnected from server");
-ws.onerror = (e) => console.error("WS Error", e);
+ws.onopen = () => {
+  console.log("Connected to", wsUrl);
+  outputConsole.textContent = "Connected. Please login.";
+};
+ws.onclose = () => {
+  console.log("Disconnected from server");
+  setAuthenticatedUI(false);
+  clearCollaboratorVisuals();
+  authModal.classList.remove("hidden");
+  loginStatus.textContent = "Connection closed. Restart backend and refresh.";
+  loginButton.disabled = false;
+  outputConsole.textContent = "Disconnected from backend WebSocket. Restart server and refresh.";
+};
+ws.onerror = (e) => {
+  console.error("WS Error", e);
+  setAuthenticatedUI(false);
+  outputConsole.textContent = "WebSocket error. Check backend server and browser console.";
+};
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
 
   switch (data.type) {
+    case "auth_required":
+      setAuthenticatedUI(false);
+      clearCollaboratorVisuals();
+      authModal.classList.remove("hidden");
+      loginButton.disabled = false;
+      loginStatus.textContent = data.message || "Please login.";
+      break;
+
+    case "auth_failed":
+      setAuthenticatedUI(false);
+      authModal.classList.remove("hidden");
+      loginButton.disabled = false;
+      loginStatus.textContent = data.message || "Authentication failed.";
+      break;
 
     case "user_role":
       role = data.role;
       currentUserId = data.id;
       roleDisplay.textContent = `Role: ${role}`;
-      editor.setReadOnly(role === "Viewer");
+      setAuthenticatedUI(true);
+      authModal.classList.add("hidden");
+      loginButton.disabled = false;
+      loginPassword.value = "";
+      loginStatus.textContent = "";
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: "cursor_update",
+          position: editor.getCursorPosition()
+        }));
+      }
       break;
 
     case "code_update":
@@ -214,7 +613,28 @@ ws.onmessage = (event) => {
       break;
 
     case "user_list":
-      updateUserList(data.users);
+      latestUsers = data.users || [];
+      updateUserList(latestUsers);
+      {
+        const activeIds = new Set(latestUsers.map((u) => u.id));
+        Array.from(collaboratorCursorMarkers.keys()).forEach((uid) => {
+          if (!activeIds.has(uid)) removeCollaboratorCursor(uid);
+        });
+      }
+      break;
+
+    case "history_update":
+      historyEntries = data.entries || [];
+      renderHistory(historyEntries);
+      break;
+
+    case "cursor_update":
+      applyCollaboratorCursor(data.senderId, data.user, data.position);
+      updateUserList(latestUsers);
+      break;
+
+    case "edit_activity":
+      applyEditActivity(data.senderId, data.range);
       break;
 
     case "execution_result":
@@ -225,16 +645,48 @@ ws.onmessage = (event) => {
     case "ai_suggestion":
       aiButton.disabled = false;
       outputConsole.textContent = data.suggestion;
+      pendingAiCode = extractCodeBlock(data.suggestion);
+      if (pendingAiCode && role !== "Viewer") {
+        applyAiFixButton.classList.remove("hidden");
+      } else {
+        applyAiFixButton.classList.add("hidden");
+      }
       break;
 
     case "error":
-      runButton.disabled = false;
-      aiButton.disabled = false;
+      runButton.disabled = !isAuthenticated;
+      aiButton.disabled = !isAuthenticated;
       // FIX: Log error to console instead of just alert to avoid interrupting the user
       console.error("Server Error:", data.message);
-      if(data.message.includes("Version conflict")) {
-          console.warn("Attempting to resync...");
+      if (data.message && data.message.includes("Version conflict")) {
+          if (typeof data.current_version === "number") {
+            currentVersion = data.current_version;
+          }
+          if (!isRetryingAfterConflict && ws.readyState === WebSocket.OPEN && isAuthenticated && role !== "Viewer") {
+            isRetryingAfterConflict = true;
+            ws.send(JSON.stringify({
+              type: "code_update",
+              content: editor.getValue(),
+              version: currentVersion,
+              change_meta: { preview: "Resynced after conflict" }
+            }));
+            setTimeout(() => { isRetryingAfterConflict = false; }, 150);
+            outputConsole.textContent = "Version conflict resolved. Synced latest change.";
+          } else {
+            outputConsole.textContent = "Version conflict. Retrying sync...";
+          }
+      } else {
+          outputConsole.textContent = `Error: ${data.message}`;
       }
+      break;
+
+    case "kicked":
+      alert(data.message || "You were removed by Owner.");
+      setAuthenticatedUI(false);
+      clearCollaboratorVisuals();
+      authModal.classList.remove("hidden");
+      loginStatus.textContent = "Access removed.";
+      ws.close();
       break;
   }
 };
@@ -242,24 +694,65 @@ ws.onmessage = (event) => {
 /* ================= EDITOR SYNC ================= */
 
 let typingTimer;
-editor.session.on("change", () => {
+editor.session.on("change", (delta) => {
   // FIX: Don't send anything if the change came from the server OR if we are just a viewer
+  if (!isAuthenticated) return;
   if (role === "Viewer" || isApplyingRemoteUpdate) return;
+  if (ws.readyState !== WebSocket.OPEN) return;
+
+  if (delta && delta.range) {
+    lastLocalChangePreview = buildChangePreview(delta);
+    const localPos = editor.getCursorPosition();
+    collaboratorPresence.set(currentUserId, {
+      row: localPos.row,
+      column: localPos.column,
+      userName: "You"
+    });
+    updateUserList(latestUsers);
+
+    ws.send(JSON.stringify({
+      type: "edit_activity",
+      range: delta.range,
+      preview: lastLocalChangePreview
+    }));
+  }
 
   clearTimeout(typingTimer);
   typingTimer = setTimeout(() => {
     ws.send(JSON.stringify({
       type: "code_update",
       content: editor.getValue(),
-      version: currentVersion
+      version: currentVersion,
+      change_meta: { preview: lastLocalChangePreview }
     }));
   }, 300);
+});
+
+editor.selection.on("changeCursor", () => {
+  if (!isAuthenticated) return;
+  if (ws.readyState !== WebSocket.OPEN) return;
+  const position = editor.getCursorPosition();
+  collaboratorPresence.set(currentUserId, {
+    row: position.row,
+    column: position.column,
+    userName: "You"
+  });
+  updateUserList(latestUsers);
+  ws.send(JSON.stringify({
+    type: "cursor_update",
+    position
+  }));
 });
 
 /* ================= ACTIONS ================= */
 
 runButton.onclick = () => {
+  if (!isAuthenticated) return;
   if (role === "Viewer") return alert("Only Editors/Owners can run code.");
+  if (ws.readyState !== WebSocket.OPEN) {
+    outputConsole.textContent = "WebSocket not connected. Start backend server and refresh.";
+    return;
+  }
   runButton.disabled = true;
   outputConsole.textContent = "Running code in sandbox...";
   ws.send(JSON.stringify({
@@ -270,11 +763,33 @@ runButton.onclick = () => {
 };
 
 aiButton.onclick = () => {
+  if (!isAuthenticated) return;
+  if (ws.readyState !== WebSocket.OPEN) {
+    outputConsole.textContent = "WebSocket not connected. Start backend server and refresh.";
+    return;
+  }
   aiButton.disabled = true;
-  outputConsole.textContent = "Asking AI for suggestions...";
+  applyAiFixButton.classList.add("hidden");
+  pendingAiCode = null;
+  outputConsole.textContent = "Asking AI for suggestions... (first run can take up to 60s)";
   ws.send(JSON.stringify({
     type: "ask_ai",
+    language: langSelect.value,
     code: editor.getValue()
+  }));
+};
+
+applyAiFixButton.onclick = () => {
+  if (!isAuthenticated) return;
+  if (!pendingAiCode || role === "Viewer") return;
+  editor.setValue(pendingAiCode, -1);
+  applyAiFixButton.classList.add("hidden");
+  if (ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({
+    type: "code_update",
+    content: pendingAiCode,
+    version: currentVersion,
+    change_meta: { preview: "Applied AI fix" }
   }));
 };
 
@@ -284,8 +799,13 @@ chatInput.addEventListener("keypress", (e) => {
 });
 
 function sendMessage() {
+  if (!isAuthenticated) return;
   const msg = chatInput.value.trim();
   if (!msg) return;
+  if (ws.readyState !== WebSocket.OPEN) {
+    outputConsole.textContent = "WebSocket not connected. Start backend server and refresh.";
+    return;
+  }
   ws.send(JSON.stringify({ type: "chat_message", message: msg }));
   chatInput.value = "";
 }
@@ -305,12 +825,140 @@ function updateUserList(users) {
   userList.innerHTML = "";
   users.forEach(u => {
     const li = document.createElement("li");
-    li.className = "flex items-center space-x-2";
-    // FIX: Added a green dot for online users
-    li.innerHTML = `<span class="h-2 w-2 bg-green-500 rounded-full"></span> <span>${u.name} (${u.role})</span>`;
+    li.className = "flex items-center justify-between gap-2";
+    const canManage = role === "Owner" && u.id !== currentUserId && u.role !== "Owner";
+    const presence = collaboratorPresence.get(u.id);
+    const presenceText = presence
+      ? `Editing at L${presence.row + 1}:C${presence.column + 1}`
+      : "Idle";
+    li.innerHTML = `
+      <span class="flex items-center space-x-2">
+        <span class="h-2 w-2 bg-green-500 rounded-full"></span>
+        <span>
+          <span>${u.name} (${u.role})</span>
+          <div class="presence-note">${presenceText}</div>
+        </span>
+      </span>
+      ${canManage ? `
+        <span class="flex items-center gap-1">
+          <select data-role-target="${u.id}" class="bg-[#0d1117] border border-[#30363d] text-xs rounded px-1 py-0.5">
+            <option value="Editor" ${u.role === "Editor" ? "selected" : ""}>Editor</option>
+            <option value="Viewer" ${u.role === "Viewer" ? "selected" : ""}>Viewer</option>
+          </select>
+          <button data-remove-target="${u.id}" class="bg-red-700 hover:bg-red-800 text-xs px-2 py-1 rounded">Remove</button>
+        </span>
+      ` : ""}
+    `;
     userList.appendChild(li);
   });
+
+  userList.querySelectorAll("select[data-role-target]").forEach((el) => {
+    el.addEventListener("change", () => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({
+        type: "change_role",
+        target_id: el.getAttribute("data-role-target"),
+        new_role: el.value
+      }));
+    });
+  });
+
+  userList.querySelectorAll("button[data-remove-target]").forEach((el) => {
+    el.addEventListener("click", () => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({
+        type: "remove_user",
+        target_id: el.getAttribute("data-remove-target")
+      }));
+    });
+  });
 }
+
+function extractCodeBlock(text) {
+  if (!text) return null;
+  const match = text.match(/```[a-zA-Z0-9_+-]*\n([\s\S]*?)```/);
+  return match ? match[1].trimEnd() : null;
+}
+
+function buildChangePreview(delta) {
+  if (!delta || !Array.isArray(delta.lines)) return "Code updated";
+  const joined = delta.lines.join(" ").replace(/\s+/g, " ").trim();
+  if (!joined) {
+    return delta.action === "remove" ? "Deleted text" : "Updated code";
+  }
+  const prefix = delta.action === "remove" ? "Removed" : "Edited";
+  return `${prefix}: ${joined.slice(0, 90)}`;
+}
+
+function timestampForFile() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
+downloadReportButton.addEventListener("click", () => {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    outputConsole.textContent = "PDF library not loaded. Check internet/CDN access.";
+    return;
+  }
+
+  const code = editor.getValue();
+  const output = outputConsole.textContent || "";
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 40;
+  const usableWidth = pageWidth - (margin * 2);
+  let y = margin;
+
+  const writeLines = (lines, lineHeight = 14) => {
+    for (const line of lines) {
+      if (y > pageHeight - margin) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(line, margin, y);
+      y += lineHeight;
+    }
+  };
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("CollabX Export Report", margin, y);
+  y += 22;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, margin, y);
+  y += 14;
+  doc.text(`Language: ${langSelect.value}`, margin, y);
+  y += 20;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Code", margin, y);
+  y += 16;
+  doc.setFont("courier", "normal");
+  doc.setFontSize(9);
+  writeLines(doc.splitTextToSize(code || "(No code)", usableWidth), 12);
+  y += 10;
+
+  if (y > pageHeight - margin - 40) {
+    doc.addPage();
+    y = margin;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Output", margin, y);
+  y += 16;
+  doc.setFont("courier", "normal");
+  doc.setFontSize(9);
+  writeLines(doc.splitTextToSize(output || "(No output)", usableWidth), 12);
+
+  doc.save(`collabx-report-${timestampForFile()}.pdf`);
+});
 </script>
 </body>
 </html>
