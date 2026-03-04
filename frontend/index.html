@@ -193,6 +193,18 @@ header {
         <button id="run-button" class="bg-emerald-600 px-4 py-2 rounded-lg hover:bg-emerald-700 transition">
           Run Code
         </button>
+        <button id="checkpoint-button" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-2 rounded-lg transition text-sm">
+          Checkpoints
+        </button>
+        <button id="comments-button" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-2 rounded-lg transition text-sm">
+          Comments
+        </button>
+        <button id="admin-button" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-2 rounded-lg transition text-sm">
+          Admin
+        </button>
+        <button id="integrations-button" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-2 rounded-lg transition text-sm">
+          Integrations
+        </button>
         <button id="download-report-button" class="bg-[#30363d] hover:bg-[#44536a] px-4 py-2 rounded-lg transition text-sm">
           Download PDF
         </button>
@@ -248,6 +260,90 @@ header {
   </div>
 </div>
 
+<div id="checkpoint-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+  <div class="w-full max-w-5xl bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-3">
+    <div class="flex items-center justify-between">
+      <h2 class="font-bold">Git-like Versioning</h2>
+      <button id="checkpoint-close" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-1 rounded text-sm">Close</button>
+    </div>
+    <div class="flex gap-2">
+      <input id="checkpoint-name" class="flex-1 bg-[#0d1117] border border-[#30363d] p-2 rounded text-sm" placeholder="Checkpoint name" />
+      <button id="checkpoint-create" class="bg-blue-600 hover:bg-blue-700 px-3 rounded text-sm">Create Snapshot</button>
+      <button id="checkpoint-refresh" class="bg-[#30363d] hover:bg-[#44536a] px-3 rounded text-sm">Refresh</button>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+      <select id="checkpoint-left" class="bg-[#0d1117] border border-[#30363d] p-2 rounded text-sm"></select>
+      <select id="checkpoint-right" class="bg-[#0d1117] border border-[#30363d] p-2 rounded text-sm"></select>
+    </div>
+    <div class="flex gap-2">
+      <button id="checkpoint-restore" class="bg-emerald-600 hover:bg-emerald-700 px-3 py-2 rounded text-sm">Restore Left</button>
+      <button id="checkpoint-diff" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-2 rounded text-sm">Show Side-by-side Diff</button>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <pre id="diff-left" class="h-60 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2 text-xs"></pre>
+      <pre id="diff-right" class="h-60 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2 text-xs"></pre>
+    </div>
+    <pre id="diff-unified" class="h-40 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2 text-xs"></pre>
+  </div>
+</div>
+
+<div id="comments-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+  <div class="w-full max-w-3xl bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-3">
+    <div class="flex items-center justify-between">
+      <h2 class="font-bold">Comments & Inline Review</h2>
+      <button id="comments-close" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-1 rounded text-sm">Close</button>
+    </div>
+    <div class="flex gap-2">
+      <input id="comment-input" class="flex-1 bg-[#0d1117] border border-[#30363d] p-2 rounded text-sm" placeholder="Write comment for selected range in editor" />
+      <button id="comment-add" class="bg-blue-600 hover:bg-blue-700 px-3 rounded text-sm">Add Comment</button>
+      <button id="comment-refresh" class="bg-[#30363d] hover:bg-[#44536a] px-3 rounded text-sm">Refresh</button>
+    </div>
+    <div id="comments-list" class="h-80 overflow-y-auto text-sm space-y-2 pr-1"></div>
+  </div>
+</div>
+
+<div id="admin-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+  <div class="w-full max-w-5xl bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-3">
+    <div class="flex items-center justify-between">
+      <h2 class="font-bold">Admin Dashboard</h2>
+      <button id="admin-close" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-1 rounded text-sm">Close</button>
+    </div>
+    <button id="admin-refresh" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-2 rounded text-sm">Refresh Dashboard</button>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+      <pre id="admin-active-users" class="h-48 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2"></pre>
+      <pre id="admin-run-stats" class="h-48 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2"></pre>
+      <pre id="admin-sessions" class="h-48 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2"></pre>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+      <pre id="admin-role-changes" class="h-40 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2"></pre>
+      <pre id="admin-moderation" class="h-40 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2"></pre>
+    </div>
+  </div>
+</div>
+
+<div id="integrations-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+  <div class="w-full max-w-2xl bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-3">
+    <div class="flex items-center justify-between">
+      <h2 class="font-bold">Integrations</h2>
+      <button id="integrations-close" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-1 rounded text-sm">Close</button>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <button data-integration="github_pull" class="integration-action bg-[#30363d] hover:bg-[#44536a] p-2 rounded text-sm">Git Pull</button>
+      <button data-integration="github_push" class="integration-action bg-[#30363d] hover:bg-[#44536a] p-2 rounded text-sm">Git Push</button>
+      <button data-integration="gist_export" class="integration-action bg-[#30363d] hover:bg-[#44536a] p-2 rounded text-sm">Gist Export</button>
+      <button data-integration="paste_export" class="integration-action bg-[#30363d] hover:bg-[#44536a] p-2 rounded text-sm">Paste Export</button>
+      <button data-integration="download_zip" class="integration-action bg-[#30363d] hover:bg-[#44536a] p-2 rounded text-sm">Project ZIP</button>
+    </div>
+    <pre id="integrations-result" class="h-56 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2 text-xs">Examples:
+- Git Pull / Git Push: sync with remote repo
+- Gist Export: share current code as GitHub Gist
+- Paste Export: create quick share link
+- Project ZIP: download workspace bundle
+
+Click any action above to run it.</pre>
+  </div>
+</div>
+
 <script>
 /* ================= CONFIG ================= */
 
@@ -270,12 +366,16 @@ let isAuthenticated = false;
 let latestUsers = [];
 let historyEntries = [];
 let lastLocalChangePreview = "Code updated";
+let checkpoints = [];
+let commentsThreads = [];
 const collaboratorPresence = new Map();
 const collaboratorCursorMarkers = new Map();
 const collaboratorPalette = ["#58a6ff", "#3fb950", "#d29922", "#f778ba", "#a371f7", "#ff7b72"];
 const collaboratorStyleSet = new Set();
 const activityMarkerTimeouts = new Map();
 let isRetryingAfterConflict = false;
+let adminRequestPending = false;
+let adminRequestTimer = null;
 // FIX: Added a flag to prevent the editor from sending a message when it receives one (Infinite loop fix)
 let isApplyingRemoteUpdate = false;
 
@@ -343,6 +443,39 @@ const historyButton = document.getElementById("history-button");
 const historyModal = document.getElementById("history-modal");
 const historyClose = document.getElementById("history-close");
 const historyModalList = document.getElementById("history-modal-list");
+const checkpointButton = document.getElementById("checkpoint-button");
+const commentsButton = document.getElementById("comments-button");
+const adminButton = document.getElementById("admin-button");
+const integrationsButton = document.getElementById("integrations-button");
+const checkpointModal = document.getElementById("checkpoint-modal");
+const checkpointClose = document.getElementById("checkpoint-close");
+const checkpointName = document.getElementById("checkpoint-name");
+const checkpointCreate = document.getElementById("checkpoint-create");
+const checkpointRefresh = document.getElementById("checkpoint-refresh");
+const checkpointLeft = document.getElementById("checkpoint-left");
+const checkpointRight = document.getElementById("checkpoint-right");
+const checkpointRestore = document.getElementById("checkpoint-restore");
+const checkpointDiff = document.getElementById("checkpoint-diff");
+const diffLeft = document.getElementById("diff-left");
+const diffRight = document.getElementById("diff-right");
+const diffUnified = document.getElementById("diff-unified");
+const commentsModal = document.getElementById("comments-modal");
+const commentsClose = document.getElementById("comments-close");
+const commentInput = document.getElementById("comment-input");
+const commentAdd = document.getElementById("comment-add");
+const commentRefresh = document.getElementById("comment-refresh");
+const commentsList = document.getElementById("comments-list");
+const adminModal = document.getElementById("admin-modal");
+const adminClose = document.getElementById("admin-close");
+const adminRefresh = document.getElementById("admin-refresh");
+const adminActiveUsers = document.getElementById("admin-active-users");
+const adminRunStats = document.getElementById("admin-run-stats");
+const adminSessions = document.getElementById("admin-sessions");
+const adminRoleChanges = document.getElementById("admin-role-changes");
+const adminModeration = document.getElementById("admin-moderation");
+const integrationsModal = document.getElementById("integrations-modal");
+const integrationsClose = document.getElementById("integrations-close");
+const integrationsResult = document.getElementById("integrations-result");
 const runButton = document.getElementById("run-button");
 const downloadReportButton = document.getElementById("download-report-button");
 const aiButton = document.getElementById("ai-button");
@@ -514,6 +647,106 @@ function renderHistory(entries) {
   });
 }
 
+function refreshCheckpointSelects() {
+  if (!checkpoints.length) {
+    checkpointLeft.innerHTML = `<option value="">No snapshots yet</option>`;
+    checkpointRight.innerHTML = `<option value="">No snapshots yet</option>`;
+    diffLeft.textContent = "No snapshots yet.\nCreate a snapshot using 'Create Snapshot'.";
+    diffRight.textContent = "After creating two snapshots, compare them here.";
+    diffUnified.textContent = "Unified diff will appear here.";
+    return;
+  }
+  const options = checkpoints.map((cp) => `<option value="${cp.id}">${cp.name} • v${cp.version} • ${cp.created_by}</option>`).join("");
+  checkpointLeft.innerHTML = options;
+  checkpointRight.innerHTML = options;
+  checkpointRight.selectedIndex = Math.min(1, checkpoints.length - 1);
+}
+
+function renderComments() {
+  commentsList.innerHTML = "";
+  if (!commentsThreads.length) {
+    commentsList.innerHTML = `<div class="history-time">No comments yet.</div>`;
+    return;
+  }
+  commentsThreads.forEach((thread) => {
+    const div = document.createElement("div");
+    div.className = "border border-[#30363d] rounded p-2";
+    const status = thread.resolved ? "Resolved" : "Open";
+    const replies = (thread.replies || []).map((r) => `<div class="pl-2 text-xs text-gray-300">↳ ${r.author}: ${r.text}</div>`).join("");
+    div.innerHTML = `
+      <div class="text-xs text-gray-400">${thread.author} • ${status} • L${(thread.range?.start?.row || 0) + 1}</div>
+      <div class="text-sm">${thread.text}</div>
+      ${replies}
+      <div class="flex gap-2 mt-2">
+        <input data-reply-input="${thread.id}" class="flex-1 bg-[#0d1117] border border-[#30363d] p-1 rounded text-xs" placeholder="Reply" />
+        <button data-reply="${thread.id}" class="bg-[#30363d] hover:bg-[#44536a] px-2 rounded text-xs">Reply</button>
+        <button data-resolve="${thread.id}" class="bg-emerald-700 hover:bg-emerald-800 px-2 rounded text-xs">Resolve</button>
+      </div>
+    `;
+    commentsList.appendChild(div);
+  });
+
+  commentsList.querySelectorAll("button[data-reply]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-reply");
+      const input = commentsList.querySelector(`input[data-reply-input="${id}"]`);
+      const text = (input?.value || "").trim();
+      if (!text) return;
+      ws.send(JSON.stringify({ type: "reply_comment", thread_id: id, text }));
+      input.value = "";
+    });
+  });
+  commentsList.querySelectorAll("button[data-resolve]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-resolve");
+      ws.send(JSON.stringify({ type: "resolve_comment", thread_id: id }));
+    });
+  });
+}
+
+function renderAdminDashboard(data) {
+  adminRequestPending = false;
+  if (adminRequestTimer) {
+    clearTimeout(adminRequestTimer);
+    adminRequestTimer = null;
+  }
+  const users = data.active_users || [];
+  const runStats = data.run_stats || {};
+  const sessions = data.sessions || [];
+  const roleChanges = data.role_changes || [];
+  const moderation = data.moderation || [];
+  adminActiveUsers.textContent = users.length
+    ? `Active Users\n\n${JSON.stringify(users, null, 2)}`
+    : "Active Users\n\nNo active users to show.";
+  adminRunStats.textContent = Object.keys(runStats).length
+    ? `Run Stats\n\n${JSON.stringify(runStats, null, 2)}`
+    : "Run Stats\n\nNo runs yet.";
+  adminSessions.textContent = sessions.length
+    ? `Session Logs\n\n${JSON.stringify(sessions, null, 2)}`
+    : "Session Logs\n\nNo session history yet.";
+  adminRoleChanges.textContent = roleChanges.length
+    ? `Role Changes\n\n${JSON.stringify(roleChanges, null, 2)}`
+    : "Role Changes\n\nNo role changes yet.";
+  adminModeration.textContent = moderation.length
+    ? `Moderation History\n\n${JSON.stringify(moderation, null, 2)}`
+    : "Moderation History\n\nNo moderation actions yet.";
+}
+
+function requestAdminDashboardWithTimeout() {
+  if (ws.readyState !== WebSocket.OPEN) return;
+  adminRequestPending = true;
+  if (adminRequestTimer) clearTimeout(adminRequestTimer);
+  adminRequestTimer = setTimeout(() => {
+    if (!adminRequestPending) return;
+    adminActiveUsers.textContent = "Admin dashboard did not respond.\nCheck backend and click Refresh Dashboard.";
+    adminRunStats.textContent = "No response yet.";
+    adminSessions.textContent = "No response yet.";
+    adminRoleChanges.textContent = "No response yet.";
+    adminModeration.textContent = "No response yet.";
+  }, 2500);
+  ws.send(JSON.stringify({ type: "request_admin_dashboard" }));
+}
+
 loginButton.addEventListener("click", attemptLogin);
 loginPassword.addEventListener("keypress", (e) => {
   if (e.key === "Enter") attemptLogin();
@@ -530,6 +763,88 @@ historyClose.addEventListener("click", () => {
 });
 historyModal.addEventListener("click", (e) => {
   if (e.target === historyModal) historyModal.classList.add("hidden");
+});
+checkpointButton.addEventListener("click", () => {
+  checkpointModal.classList.remove("hidden");
+  diffLeft.textContent = "Loading snapshots...";
+  diffRight.textContent = "Loading snapshots...";
+  diffUnified.textContent = "Loading diff...";
+  ws.send(JSON.stringify({ type: "request_checkpoints" }));
+});
+checkpointClose.addEventListener("click", () => checkpointModal.classList.add("hidden"));
+checkpointModal.addEventListener("click", (e) => {
+  if (e.target === checkpointModal) checkpointModal.classList.add("hidden");
+});
+checkpointCreate.addEventListener("click", () => {
+  ws.send(JSON.stringify({
+    type: "create_checkpoint",
+    name: checkpointName.value.trim() || `Checkpoint ${new Date().toLocaleTimeString()}`
+  }));
+  checkpointName.value = "";
+});
+checkpointRefresh.addEventListener("click", () => ws.send(JSON.stringify({ type: "request_checkpoints" })));
+checkpointRestore.addEventListener("click", () => {
+  if (!checkpointLeft.value) return;
+  ws.send(JSON.stringify({ type: "restore_checkpoint", checkpoint_id: checkpointLeft.value }));
+});
+checkpointDiff.addEventListener("click", () => {
+  if (!checkpointLeft.value || !checkpointRight.value) return;
+  ws.send(JSON.stringify({
+    type: "diff_checkpoints",
+    left_id: checkpointLeft.value,
+    right_id: checkpointRight.value
+  }));
+});
+
+commentsButton.addEventListener("click", () => {
+  commentsModal.classList.remove("hidden");
+  commentsList.innerHTML = `<div class="history-time">Loading comments...</div>`;
+  ws.send(JSON.stringify({ type: "request_comments" }));
+});
+commentsClose.addEventListener("click", () => commentsModal.classList.add("hidden"));
+commentsModal.addEventListener("click", (e) => {
+  if (e.target === commentsModal) commentsModal.classList.add("hidden");
+});
+commentAdd.addEventListener("click", () => {
+  const text = commentInput.value.trim();
+  if (!text) return;
+  const range = editor.selection.getRange();
+  ws.send(JSON.stringify({
+    type: "add_comment",
+    text,
+    range: {
+      start: { row: range.start.row, column: range.start.column },
+      end: { row: range.end.row, column: range.end.column }
+    }
+  }));
+  commentInput.value = "";
+});
+commentRefresh.addEventListener("click", () => ws.send(JSON.stringify({ type: "request_comments" })));
+
+adminButton.addEventListener("click", () => {
+  adminModal.classList.remove("hidden");
+  adminActiveUsers.textContent = "Loading active users...";
+  adminRunStats.textContent = "Loading run stats...";
+  adminSessions.textContent = "Loading sessions...";
+  adminRoleChanges.textContent = "Loading role changes...";
+  adminModeration.textContent = "Loading moderation history...";
+  requestAdminDashboardWithTimeout();
+});
+adminClose.addEventListener("click", () => adminModal.classList.add("hidden"));
+adminModal.addEventListener("click", (e) => {
+  if (e.target === adminModal) adminModal.classList.add("hidden");
+});
+adminRefresh.addEventListener("click", () => requestAdminDashboardWithTimeout());
+
+integrationsButton.addEventListener("click", () => integrationsModal.classList.remove("hidden"));
+integrationsClose.addEventListener("click", () => integrationsModal.classList.add("hidden"));
+integrationsModal.addEventListener("click", (e) => {
+  if (e.target === integrationsModal) integrationsModal.classList.add("hidden");
+});
+document.querySelectorAll(".integration-action").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    ws.send(JSON.stringify({ type: "integration_action", action: btn.getAttribute("data-integration") }));
+  });
 });
 
 setAuthenticatedUI(false);
@@ -590,6 +905,8 @@ ws.onmessage = (event) => {
           type: "cursor_update",
           position: editor.getCursorPosition()
         }));
+        ws.send(JSON.stringify({ type: "request_checkpoints" }));
+        ws.send(JSON.stringify({ type: "request_comments" }));
       }
       break;
 
@@ -628,6 +945,54 @@ ws.onmessage = (event) => {
       renderHistory(historyEntries);
       break;
 
+    case "checkpoints_update":
+      checkpoints = data.checkpoints || [];
+      refreshCheckpointSelects();
+      if (checkpoints.length >= 2) {
+        ws.send(JSON.stringify({
+          type: "diff_checkpoints",
+          left_id: checkpoints[0].id,
+          right_id: checkpoints[1].id
+        }));
+      }
+      break;
+
+    case "checkpoint_diff":
+      diffLeft.textContent = data.left?.code || "";
+      diffRight.textContent = data.right?.code || "";
+      diffUnified.textContent = data.diff || "(No diff)";
+      break;
+
+    case "comments_update":
+      commentsThreads = data.comments || [];
+      renderComments();
+      break;
+
+    case "admin_dashboard":
+      renderAdminDashboard(data);
+      break;
+
+    case "integration_result":
+      integrationsResult.textContent = `[${data.action}] ${data.result}`;
+      break;
+
+    case "project_zip":
+      {
+        const bytes = atob(data.base64 || "");
+        const arr = new Uint8Array(bytes.length);
+        for (let i = 0; i < bytes.length; i += 1) arr[i] = bytes.charCodeAt(i);
+        const blob = new Blob([arr], { type: "application/zip" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = data.filename || "collabx-project.zip";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+      break;
+
     case "cursor_update":
       applyCollaboratorCursor(data.senderId, data.user, data.position);
       updateUserList(latestUsers);
@@ -654,6 +1019,11 @@ ws.onmessage = (event) => {
       break;
 
     case "error":
+      adminRequestPending = false;
+      if (adminRequestTimer) {
+        clearTimeout(adminRequestTimer);
+        adminRequestTimer = null;
+      }
       runButton.disabled = !isAuthenticated;
       aiButton.disabled = !isAuthenticated;
       // FIX: Log error to console instead of just alert to avoid interrupting the user
@@ -677,6 +1047,13 @@ ws.onmessage = (event) => {
           }
       } else {
           outputConsole.textContent = `Error: ${data.message}`;
+          if (adminModal && !adminModal.classList.contains("hidden")) {
+            adminActiveUsers.textContent = `Admin Error:\n${data.message}`;
+            adminRunStats.textContent = "Admin data unavailable.";
+            adminSessions.textContent = "Admin data unavailable.";
+            adminRoleChanges.textContent = "Admin data unavailable.";
+            adminModeration.textContent = "Admin data unavailable.";
+          }
       }
       break;
 
@@ -771,7 +1148,7 @@ aiButton.onclick = () => {
   aiButton.disabled = true;
   applyAiFixButton.classList.add("hidden");
   pendingAiCode = null;
-  outputConsole.textContent = "Asking AI for suggestions... (first run can take up to 60s)";
+  outputConsole.textContent = "Asking AI for suggestions... (target: under 5s)";
   ws.send(JSON.stringify({
     type: "ask_ai",
     language: langSelect.value,

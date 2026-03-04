@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 import asyncio
 import ast
+import base64
+import difflib
+import io
 import json
 import logging
 import os
 import time
+import subprocess
 from datetime import datetime
 import urllib.error
 import urllib.request
 import uuid
-from subprocess import Popen, PIPE
+import zipfile
+from subprocess import Popen, PIPE, TimeoutExpired
 import websockets  # ✅ FIX
 
 
@@ -24,6 +29,19 @@ project_state = {
     "code": "",
     "chat_messages": [],
     "history": [],
+    "checkpoints": [],
+    "comments": [],
+    "admin": {
+        "sessions": [],
+        "run_stats": {
+            "total_runs": 0,
+            "by_user": {},
+            "last_output_preview": ""
+        },
+        "role_changes": [],
+        "moderation": []
+    },
+    "last_execution_output": "",
     "users": [],
     "version": 0
 }
@@ -31,6 +49,9 @@ project_state = {
 MAX_CHAT_MESSAGES = 200
 MAX_HISTORY_ITEMS = 300
 TYPING_HISTORY_INTERVAL_SECONDS = 1.5
+AI_MAX_LATENCY_SECONDS = float(os.getenv("COLLABX_AI_MAX_LATENCY_SECONDS", "5"))
+OLLAMA_TIMEOUT_SECONDS = float(os.getenv("COLLABX_OLLAMA_TIMEOUT_SECONDS", "4"))
+DOCKER_SYNTAX_TIMEOUT_SECONDS = float(os.getenv("COLLABX_DOCKER_SYNTAX_TIMEOUT_SECONDS", "3"))
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
 AUTH_USERS = {
@@ -97,6 +118,134 @@ def summarize_code_for_log(code):
         if clean:
             return clean[:120]
     return "Empty code"
+
+
+def utc_now():
+    return datetime.utcnow().isoformat(timespec="seconds") + "Z"
+
+
+def make_short_id(prefix):
+    return f"{prefix}_{uuid.uuid4().hex[:8]}"
+
+
+def admin_record_session(username, role, status):
+    project_state["admin"]["sessions"].append({
+        "timestamp": utc_now(),
+        "user": username,
+        "role": role,
+        "status": status
+    })
+    project_state["admin"]["sessions"] = project_state["admin"]["sessions"][-300:]
+
+
+def admin_record_run(username, output):
+    run_stats = project_state["admin"]["run_stats"]
+    run_stats["total_runs"] += 1
+    run_stats["by_user"][username] = run_stats["by_user"].get(username, 0) + 1
+    run_stats["last_output_preview"] = str(output).replace("\n", " ")[:180]
+
+
+def admin_record_role_change(actor, target, new_role):
+    project_state["admin"]["role_changes"].append({
+        "timestamp": utc_now(),
+        "actor": actor,
+        "target": target,
+        "new_role": new_role
+    })
+    project_state["admin"]["role_changes"] = project_state["admin"]["role_changes"][-200:]
+
+
+def admin_record_moderation(actor, action, target, details):
+    project_state["admin"]["moderation"].append({
+        "timestamp": utc_now(),
+        "actor": actor,
+        "action": action,
+        "target": target,
+        "details": details
+    })
+    project_state["admin"]["moderation"] = project_state["admin"]["moderation"][-200:]
+
+
+def create_checkpoint(name, user):
+    checkpoint = {
+        "id": make_short_id("cp"),
+        "name": name[:60] if name else f"Checkpoint v{project_state['version']}",
+        "code": project_state["code"],
+        "version": project_state["version"],
+        "created_by": user,
+        "timestamp": utc_now()
+    }
+    project_state["checkpoints"].append(checkpoint)
+    project_state["checkpoints"] = project_state["checkpoints"][-120:]
+    return checkpoint
+
+
+def ensure_initial_checkpoint():
+    if project_state["checkpoints"]:
+        return
+    create_checkpoint("Initial Snapshot", "system")
+
+
+def ensure_demo_seed_data():
+    if project_state["checkpoints"]:
+        return
+
+    demo_checkpoints = [
+        ("Demo: Hello Print", 'print("Hello from CollabX")\n'),
+        ("Demo: Variables", 'a = 10\nprint(a)\nprint("value:", a)\n'),
+        ("Demo: Loop", 'for i in range(3):\n    print("line", i)\n'),
+    ]
+
+    project_state["checkpoints"] = []
+    for idx, (name, code) in enumerate(demo_checkpoints, start=1):
+        checkpoint = {
+            "id": make_short_id("cp"),
+            "name": name,
+            "code": code,
+            "version": idx,
+            "created_by": "system",
+            "timestamp": utc_now()
+        }
+        project_state["checkpoints"].append(checkpoint)
+
+    if not project_state["code"]:
+        project_state["code"] = demo_checkpoints[0][1]
+    if project_state["version"] == 0:
+        project_state["version"] = len(demo_checkpoints)
+
+
+def find_checkpoint(checkpoint_id):
+    for cp in project_state["checkpoints"]:
+        if cp["id"] == checkpoint_id:
+            return cp
+    return None
+
+
+def make_unified_diff(old_code, new_code, old_name, new_name):
+    diff_lines = difflib.unified_diff(
+        (old_code or "").splitlines(),
+        (new_code or "").splitlines(),
+        fromfile=old_name,
+        tofile=new_name,
+        lineterm=""
+    )
+    return "\n".join(diff_lines)
+
+
+def build_project_zip_base64():
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("workspace/main_code.txt", project_state["code"] or "")
+        zf.writestr("workspace/last_output.txt", project_state["last_execution_output"] or "")
+        zf.writestr("workspace/history.json", json.dumps(project_state["history"], indent=2))
+        zf.writestr("workspace/comments.json", json.dumps(project_state["comments"], indent=2))
+        checkpoint_index = [
+            {k: v for k, v in cp.items() if k != "code"} for cp in project_state["checkpoints"]
+        ]
+        zf.writestr("workspace/checkpoints.json", json.dumps(checkpoint_index, indent=2))
+        for cp in project_state["checkpoints"]:
+            zf.writestr(f"workspace/checkpoints/{cp['id']}_{cp['name'].replace(' ', '_')}.txt", cp.get("code", ""))
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
 async def broadcast_history():
@@ -205,7 +354,7 @@ async def _query_ollama(prompt):
             headers={"Content-Type": "application/json"},
             method="POST"
         )
-        with urllib.request.urlopen(req, timeout=45) as res:
+        with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT_SECONDS) as res:
             return json.loads(res.read().decode("utf-8"))
 
     try:
@@ -256,13 +405,15 @@ async def _run_syntax_check_in_docker(language, code):
 
     def run():
         proc = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, text=True)
-        return proc.communicate(input=code, timeout=10)
+        return proc.communicate(input=code, timeout=DOCKER_SYNTAX_TIMEOUT_SECONDS)
 
     try:
         stdout, stderr = await asyncio.to_thread(run)
         if stderr.strip():
             return False, stderr.strip()
         return True, (stdout or "No syntax issues found.").strip()
+    except TimeoutExpired:
+        return False, "Syntax check timeout (fast mode)."
     except FileNotFoundError:
         return False, "Docker not found. Install Docker to enable syntax checks."
     except Exception as e:
@@ -273,6 +424,7 @@ async def get_ai_suggestion(language, code):
     if not code or not code.strip():
         return "Write code in the editor first, then run AI Debugger."
 
+    started = time.monotonic()
     diagnostics = "No diagnostics yet."
     if language == "python":
         try:
@@ -286,14 +438,27 @@ async def get_ai_suggestion(language, code):
         else:
             diagnostics = "Python parser: no syntax errors."
 
-    ok, detail = await _run_syntax_check_in_docker(language, code)
+    try:
+        ok, detail = await asyncio.wait_for(
+            _run_syntax_check_in_docker(language, code),
+            timeout=DOCKER_SYNTAX_TIMEOUT_SECONDS + 0.5
+        )
+    except asyncio.TimeoutError:
+        ok, detail = False, "Syntax check timeout (fast mode)."
+
     if ok:
         diagnostics = f"{diagnostics}\nCompiler check: no syntax errors."
     else:
         diagnostics = f"{diagnostics}\nCompiler output:\n{detail}"
 
     prompt = _build_debug_prompt(language, code, diagnostics)
-    ai_response = await _query_ollama(prompt)
+    remaining = AI_MAX_LATENCY_SECONDS - (time.monotonic() - started)
+    ai_response = ""
+    if remaining > 1:
+        try:
+            ai_response = await asyncio.wait_for(_query_ollama(prompt), timeout=remaining)
+        except asyncio.TimeoutError:
+            ai_response = ""
     if ai_response:
         return ai_response
 
@@ -384,7 +549,9 @@ async def handler(ws, path=None):
                     "name": auth_result["name"],
                     "role": auth_result["role"]
                 }
+                ensure_demo_seed_data()
                 project_state["users"].append(authenticated_user)
+                admin_record_session(authenticated_user["name"], authenticated_user["role"], "login")
                 logging.info(
                     f"[+] {authenticated_user['name']} ({authenticated_user['role']}) authenticated"
                 )
@@ -404,6 +571,17 @@ async def handler(ws, path=None):
                 await ws.send(json.dumps({
                     "type": "history_update",
                     "entries": project_state["history"][-120:]
+                }))
+                await ws.send(json.dumps({
+                    "type": "checkpoints_update",
+                    "checkpoints": [
+                        {k: v for k, v in cp.items() if k != "code"}
+                        for cp in project_state["checkpoints"]
+                    ]
+                }))
+                await ws.send(json.dumps({
+                    "type": "comments_update",
+                    "comments": project_state["comments"]
                 }))
                 await broadcast_user_list()
                 continue
@@ -544,6 +722,8 @@ async def handler(ws, path=None):
                     "run_result",
                     "Execution finished" if output else "Execution finished (no output)"
                 )
+                project_state["last_execution_output"] = output or ""
+                admin_record_run(current_user["name"], output or "")
                 await broadcast_history()
 
             elif msg_type == "ask_ai":
@@ -562,6 +742,237 @@ async def handler(ws, path=None):
                     "entries": project_state["history"][-120:]
                 }))
 
+            elif msg_type == "request_checkpoints":
+                await ws.send(json.dumps({
+                    "type": "checkpoints_update",
+                    "checkpoints": [
+                        {k: v for k, v in cp.items() if k != "code"}
+                        for cp in project_state["checkpoints"]
+                    ]
+                }))
+
+            elif msg_type == "create_checkpoint":
+                if current_user["role"] not in ("Owner", "Editor"):
+                    await ws.send(json.dumps({"type": "error", "message": "Permission denied"}))
+                    continue
+                cp = create_checkpoint(str(data.get("name", "")).strip(), current_user["name"])
+                append_history(current_user["name"], "checkpoint", f"Created {cp['name']}")
+                await broadcast(json.dumps({
+                    "type": "checkpoints_update",
+                    "checkpoints": [
+                        {k: v for k, v in c.items() if k != "code"} for c in project_state["checkpoints"]
+                    ]
+                }))
+                await broadcast_history()
+
+            elif msg_type == "restore_checkpoint":
+                if current_user["role"] not in ("Owner", "Editor"):
+                    await ws.send(json.dumps({"type": "error", "message": "Permission denied"}))
+                    continue
+                cp = find_checkpoint(str(data.get("checkpoint_id", "")))
+                if not cp:
+                    await ws.send(json.dumps({"type": "error", "message": "Checkpoint not found"}))
+                    continue
+                project_state["code"] = cp["code"]
+                project_state["version"] += 1
+                append_history(current_user["name"], "checkpoint_restore", f"Restored {cp['name']}")
+                await broadcast(json.dumps({
+                    "type": "code_update",
+                    "content": project_state["code"],
+                    "version": project_state["version"],
+                    "senderId": "server"
+                }))
+                await broadcast_history()
+
+            elif msg_type == "diff_checkpoints":
+                left_id = str(data.get("left_id", ""))
+                right_id = str(data.get("right_id", ""))
+                left_cp = find_checkpoint(left_id)
+                right_cp = find_checkpoint(right_id)
+                if not left_cp or not right_cp:
+                    await ws.send(json.dumps({"type": "error", "message": "Select valid checkpoints"}))
+                    continue
+                diff_text = make_unified_diff(
+                    left_cp.get("code", ""),
+                    right_cp.get("code", ""),
+                    left_cp.get("name", "left"),
+                    right_cp.get("name", "right")
+                )
+                await ws.send(json.dumps({
+                    "type": "checkpoint_diff",
+                    "left": left_cp,
+                    "right": right_cp,
+                    "diff": diff_text
+                }))
+
+            elif msg_type == "request_comments":
+                await ws.send(json.dumps({
+                    "type": "comments_update",
+                    "comments": project_state["comments"]
+                }))
+
+            elif msg_type == "add_comment":
+                comment_text = str(data.get("text", "")).strip()
+                comment_range = data.get("range")
+                if not comment_text or not isinstance(comment_range, dict):
+                    await ws.send(json.dumps({"type": "error", "message": "Invalid comment"}))
+                    continue
+                thread = {
+                    "id": make_short_id("cm"),
+                    "range": comment_range,
+                    "text": comment_text[:400],
+                    "author": current_user["name"],
+                    "created_at": utc_now(),
+                    "resolved": False,
+                    "replies": []
+                }
+                project_state["comments"].append(thread)
+                project_state["comments"] = project_state["comments"][-300:]
+                append_history(current_user["name"], "comment_add", comment_text[:100])
+                await broadcast(json.dumps({"type": "comments_update", "comments": project_state["comments"]}))
+                await broadcast_history()
+
+            elif msg_type == "reply_comment":
+                thread_id = str(data.get("thread_id", ""))
+                reply_text = str(data.get("text", "")).strip()
+                thread = next((c for c in project_state["comments"] if c["id"] == thread_id), None)
+                if not thread or not reply_text:
+                    await ws.send(json.dumps({"type": "error", "message": "Invalid reply"}))
+                    continue
+                thread["replies"].append({
+                    "id": make_short_id("rp"),
+                    "author": current_user["name"],
+                    "text": reply_text[:300],
+                    "created_at": utc_now()
+                })
+                append_history(current_user["name"], "comment_reply", reply_text[:100])
+                await broadcast(json.dumps({"type": "comments_update", "comments": project_state["comments"]}))
+                await broadcast_history()
+
+            elif msg_type == "resolve_comment":
+                thread_id = str(data.get("thread_id", ""))
+                thread = next((c for c in project_state["comments"] if c["id"] == thread_id), None)
+                if not thread:
+                    await ws.send(json.dumps({"type": "error", "message": "Comment not found"}))
+                    continue
+                thread["resolved"] = True
+                append_history(current_user["name"], "comment_resolve", thread_id)
+                await broadcast(json.dumps({"type": "comments_update", "comments": project_state["comments"]}))
+                await broadcast_history()
+
+            elif msg_type == "request_admin_dashboard":
+                if current_user["role"] != "Owner":
+                    await ws.send(json.dumps({"type": "error", "message": "Only Owner can view admin dashboard"}))
+                    continue
+                payload = {
+                    "type": "admin_dashboard",
+                    "active_users": list(project_state["users"]),
+                    "sessions": list(project_state["admin"]["sessions"][-120:]),
+                    "run_stats": dict(project_state["admin"]["run_stats"]),
+                    "role_changes": list(project_state["admin"]["role_changes"][-120:]),
+                    "moderation": list(project_state["admin"]["moderation"][-120:])
+                }
+                try:
+                    json.dumps(payload)
+                    await ws.send(json.dumps(payload))
+                except Exception as e:
+                    await ws.send(json.dumps({
+                        "type": "error",
+                        "message": f"Admin dashboard serialization error: {e}"
+                    }))
+
+            elif msg_type == "integration_action":
+                action = str(data.get("action", "")).strip()
+                if action == "github_pull":
+                    try:
+                        result = subprocess.run(
+                            ["git", "pull"],
+                            cwd=os.path.dirname(__file__),
+                            capture_output=True, text=True, timeout=20
+                        )
+                        msg = (result.stdout or result.stderr or "No output").strip()[:1200]
+                    except Exception as e:
+                        msg = f"Git pull failed: {e}"
+                    await ws.send(json.dumps({"type": "integration_result", "action": action, "result": msg}))
+                elif action == "github_push":
+                    try:
+                        result = subprocess.run(
+                            ["git", "push"],
+                            cwd=os.path.dirname(__file__),
+                            capture_output=True, text=True, timeout=20
+                        )
+                        msg = (result.stdout or result.stderr or "No output").strip()[:1200]
+                    except Exception as e:
+                        msg = f"Git push failed: {e}"
+                    await ws.send(json.dumps({"type": "integration_result", "action": action, "result": msg}))
+                elif action == "gist_export":
+                    token = os.getenv("GITHUB_TOKEN", "")
+                    if not token:
+                        await ws.send(json.dumps({
+                            "type": "integration_result",
+                            "action": action,
+                            "result": "Set GITHUB_TOKEN environment variable to export gist."
+                        }))
+                        continue
+                    payload = {
+                        "description": "CollabX export",
+                        "public": False,
+                        "files": {"collabx_code.txt": {"content": project_state["code"] or ""}}
+                    }
+                    req = urllib.request.Request(
+                        "https://api.github.com/gists",
+                        data=json.dumps(payload).encode("utf-8"),
+                        headers={
+                            "Content-Type": "application/json",
+                            "Authorization": f"token {token}"
+                        },
+                        method="POST"
+                    )
+                    try:
+                        with urllib.request.urlopen(req, timeout=20) as res:
+                            gist_res = json.loads(res.read().decode("utf-8"))
+                        await ws.send(json.dumps({
+                            "type": "integration_result",
+                            "action": action,
+                            "result": gist_res.get("html_url", "Gist created")
+                        }))
+                    except Exception as e:
+                        await ws.send(json.dumps({
+                            "type": "integration_result",
+                            "action": action,
+                            "result": f"Gist export failed: {e}"
+                        }))
+                elif action == "paste_export":
+                    req = urllib.request.Request(
+                        "https://paste.rs",
+                        data=(project_state["code"] or "").encode("utf-8"),
+                        headers={"Content-Type": "text/plain"},
+                        method="POST"
+                    )
+                    try:
+                        with urllib.request.urlopen(req, timeout=20) as res:
+                            url = res.read().decode("utf-8").strip()
+                        await ws.send(json.dumps({
+                            "type": "integration_result",
+                            "action": action,
+                            "result": url or "Paste created"
+                        }))
+                    except Exception as e:
+                        await ws.send(json.dumps({
+                            "type": "integration_result",
+                            "action": action,
+                            "result": f"Paste export failed: {e}"
+                        }))
+                elif action == "download_zip":
+                    zip_b64 = build_project_zip_base64()
+                    await ws.send(json.dumps({
+                        "type": "project_zip",
+                        "filename": f"collabx-project-{int(time.time())}.zip",
+                        "base64": zip_b64
+                    }))
+                else:
+                    await ws.send(json.dumps({"type": "integration_result", "action": action, "result": "Unsupported action"}))
+
             elif msg_type == "remove_user":
                 if current_user["role"] != "Owner":
                     await ws.send(json.dumps({
@@ -577,7 +988,9 @@ async def handler(ws, path=None):
                 if not ok:
                     await ws.send(json.dumps({"type": "error", "message": message}))
                 else:
+                    target_id = str(data.get("target_id", ""))
                     append_history(current_user["name"], "remove_user", message)
+                    admin_record_moderation(current_user["name"], "remove_user", target_id, message)
                     await broadcast_history()
 
             elif msg_type == "change_role":
@@ -623,6 +1036,7 @@ async def handler(ws, path=None):
                     "role_change",
                     f"Changed {target_user['name']} to {new_role}"
                 )
+                admin_record_role_change(current_user["name"], target_user["name"], new_role)
                 target_ws = connections.get(target_id)
                 if target_ws:
                     await target_ws.send(json.dumps({
@@ -642,6 +1056,7 @@ async def handler(ws, path=None):
         project_state["users"] = [u for u in project_state["users"] if u["id"] != user_id]
         if authenticated_user:
             logging.info(f"[-] {authenticated_user['name']} disconnected")
+            admin_record_session(authenticated_user["name"], authenticated_user["role"], "logout")
         else:
             logging.info(f"[-] unauthenticated connection closed ({user_id})")
         await broadcast_user_list()
