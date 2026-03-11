@@ -50,7 +50,11 @@ MAX_CHAT_MESSAGES = 200
 MAX_HISTORY_ITEMS = 300
 TYPING_HISTORY_INTERVAL_SECONDS = 1.5
 AI_MAX_LATENCY_SECONDS = float(os.getenv("COLLABX_AI_MAX_LATENCY_SECONDS", "90"))
-OLLAMA_TIMEOUT_SECONDS = float(os.getenv("COLLABX_OLLAMA_TIMEOUT_SECONDS", "60"))
+_ollama_timeout_env = os.getenv("COLLABX_OLLAMA_TIMEOUT_SECONDS")
+if _ollama_timeout_env is None or str(_ollama_timeout_env).lower() == "none":
+    OLLAMA_TIMEOUT_SECONDS = None  # no timeout
+else:
+    OLLAMA_TIMEOUT_SECONDS = float(_ollama_timeout_env)
 DOCKER_SYNTAX_TIMEOUT_SECONDS = float(os.getenv("COLLABX_DOCKER_SYNTAX_TIMEOUT_SECONDS", "3"))
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
@@ -454,12 +458,9 @@ async def get_ai_suggestion(language, code):
             diagnostics = "Python parser: no syntax errors."
 
     try:
-        ok, detail = await asyncio.wait_for(
-            _run_syntax_check_in_docker(language, code),
-            timeout=DOCKER_SYNTAX_TIMEOUT_SECONDS + 0.5
-        )
-    except asyncio.TimeoutError:
-        ok, detail = False, "Syntax check timeout (fast mode)."
+        ok, detail = await _run_syntax_check_in_docker(language, code)
+    except Exception as e:
+        ok, detail = False, f"Syntax check failed: {e}"
 
     if ok:
         diagnostics = f"{diagnostics}\nCompiler check: no syntax errors."
@@ -467,13 +468,7 @@ async def get_ai_suggestion(language, code):
         diagnostics = f"{diagnostics}\nCompiler output:\n{detail}"
 
     prompt = _build_debug_prompt(language, code, diagnostics)
-    remaining = AI_MAX_LATENCY_SECONDS - (time.monotonic() - started)
-    ai_response = ""
-    if remaining > 1:
-        try:
-            ai_response = await asyncio.wait_for(_query_ollama(prompt), timeout=remaining)
-        except asyncio.TimeoutError:
-            ai_response = ""
+    ai_response = await _query_ollama(prompt)
     if ai_response:
         return ai_response
 
