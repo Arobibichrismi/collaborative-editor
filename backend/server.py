@@ -49,8 +49,8 @@ project_state = {
 MAX_CHAT_MESSAGES = 200
 MAX_HISTORY_ITEMS = 300
 TYPING_HISTORY_INTERVAL_SECONDS = 1.5
-AI_MAX_LATENCY_SECONDS = float(os.getenv("COLLABX_AI_MAX_LATENCY_SECONDS", "5"))
-OLLAMA_TIMEOUT_SECONDS = float(os.getenv("COLLABX_OLLAMA_TIMEOUT_SECONDS", "4"))
+AI_MAX_LATENCY_SECONDS = float(os.getenv("COLLABX_AI_MAX_LATENCY_SECONDS", "90"))
+OLLAMA_TIMEOUT_SECONDS = float(os.getenv("COLLABX_OLLAMA_TIMEOUT_SECONDS", "60"))
 DOCKER_SYNTAX_TIMEOUT_SECONDS = float(os.getenv("COLLABX_DOCKER_SYNTAX_TIMEOUT_SECONDS", "3"))
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
@@ -59,6 +59,14 @@ AUTH_USERS = {
     "editor": {"password": os.getenv("COLLABX_EDITOR_PASSWORD", "editor123"), "role": "Editor"},
     "viewer": {"password": os.getenv("COLLABX_VIEWER_PASSWORD", "viewer123"), "role": "Viewer"},
 }
+
+logging.info(
+    "Ollama config: url=%s model=%s timeout=%ss max_latency=%ss",
+    OLLAMA_URL,
+    OLLAMA_MODEL,
+    OLLAMA_TIMEOUT_SECONDS,
+    AI_MAX_LATENCY_SECONDS,
+)
 typing_history_last_logged = {}  # user_id -> monotonic timestamp
 
 # -------------------- User Management --------------------
@@ -341,6 +349,7 @@ def _build_debug_prompt(language, code, diagnostics):
 
 
 async def _query_ollama(prompt):
+    logging.info("ollama request -> url=%s model=%s", OLLAMA_URL, OLLAMA_MODEL)
     payload = json.dumps({
         "model": OLLAMA_MODEL,
         "prompt": prompt,
@@ -359,10 +368,16 @@ async def _query_ollama(prompt):
 
     try:
         data = await asyncio.to_thread(run)
+        logging.info("ollama response len=%s", len(data.get("response", "")))
         return data.get("response", "").strip()
     except urllib.error.URLError:
+        logging.exception("ollama call failed (URLError)")
+        return ""
+    except TimeoutError:
+        logging.exception("ollama call failed (timeout)")
         return ""
     except Exception:
+        logging.exception("ollama call failed (generic)")
         return ""
 
 
