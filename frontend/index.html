@@ -11,6 +11,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.3/ace.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <style>
 :root {
@@ -148,6 +149,159 @@ h1 span.text-blue-400 {
 header {
   animation: floatPulse 6s ease-in-out infinite;
 }
+
+/* Admin dashboard enhanced */
+.admin-card {
+  background: rgba(12, 24, 45, 0.78);
+  border: 1px solid rgba(132, 168, 223, 0.25);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+.admin-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(79, 140, 255, 0.16), rgba(12, 26, 52, 0.9));
+  border: 1px solid rgba(116, 162, 227, 0.28);
+}
+.admin-metric .label { color: #b7c7e6; font-size: 0.8rem; letter-spacing: 0.3px; }
+.admin-metric .value { font-size: 1.6rem; font-weight: 800; color: #eaf2ff; }
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(71, 140, 255, 0.15);
+  border: 1px solid rgba(71, 140, 255, 0.35);
+  font-size: 0.78rem;
+}
+.timeline {
+  display: grid;
+  gap: 10px;
+}
+.timeline-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(9, 18, 33, 0.9);
+  border: 1px solid rgba(132, 168, 223, 0.16);
+}
+.timeline-item .time { color: #8fb0df; font-size: 0.78rem; }
+.timeline-item .text { color: #eaf2ff; font-size: 0.9rem; }
+
+/* GitHub-inspired integrations */
+.gh-panel {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 16px;
+  box-shadow: 0 22px 60px rgba(0,0,0,0.45);
+}
+.gh-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.gh-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+.gh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #30363d;
+  background: #161b22;
+  color: #9db2d1;
+  font-size: 0.78rem;
+}
+.gh-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.gh-btn {
+  background: #161b22;
+  color: #e6edf3;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.gh-btn:hover {
+  transform: translateY(-1px);
+  border-color: #388bfd;
+  background: #1c212a;
+}
+.gh-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.gh-body {
+  background: #0b1624;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 14px;
+  color: #c9d1d9;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+}
+
+/* Versioning modal (GitHub-esque) */
+.gh-modal {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+}
+.gh-subtle {
+  color: #8b949e;
+  font-size: 0.82rem;
+}
+.gh-input {
+  background: #0b1624 !important;
+  border: 1px solid #30363d !important;
+  color: #e6edf3 !important;
+  border-radius: 10px;
+}
+.gh-select {
+  background: #0b1624;
+  border: 1px solid #30363d;
+  color: #e6edf3;
+  border-radius: 10px;
+}
+.ghost-btn {
+  background: #1f6feb;
+  border: 1px solid #388bfd;
+  color: #e6edf3;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.ghost-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 30px rgba(56,139,253,0.35); }
+.ghost-btn.gray {
+  background: #21262d;
+  border-color: #30363d;
+}
+.panel-surface {
+  background: #0b1624;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 12px;
+}
 </style>
 </head>
 
@@ -261,29 +415,45 @@ header {
 </div>
 
 <div id="checkpoint-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-  <div class="w-full max-w-5xl bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-3">
+  <div class="w-full max-w-5xl gh-modal p-5 space-y-4">
     <div class="flex items-center justify-between">
-      <h2 class="font-bold">Git-like Versioning</h2>
-      <button id="checkpoint-close" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-1 rounded text-sm">Close</button>
+      <div>
+        <p class="gh-subtle uppercase tracking-widest">Snapshots</p>
+        <h2 class="text-xl font-bold">Git-like Versioning</h2>
+      </div>
+      <button id="checkpoint-close" class="ghost-btn gray px-3 py-2 text-sm">Close</button>
     </div>
-    <div class="flex gap-2">
-      <input id="checkpoint-name" class="flex-1 bg-[#0d1117] border border-[#30363d] p-2 rounded text-sm" placeholder="Checkpoint name" />
-      <button id="checkpoint-create" class="bg-blue-600 hover:bg-blue-700 px-3 rounded text-sm">Create Snapshot</button>
-      <button id="checkpoint-refresh" class="bg-[#30363d] hover:bg-[#44536a] px-3 rounded text-sm">Refresh</button>
+
+    <div class="flex flex-col md:flex-row gap-3">
+      <input id="checkpoint-name" class="flex-1 gh-input p-3 text-sm" placeholder="Name your snapshot (e.g., Fix auth flow)" />
+      <div class="flex gap-2">
+        <button id="checkpoint-create" class="ghost-btn text-sm">Create Snapshot</button>
+        <button id="checkpoint-refresh" class="ghost-btn gray text-sm">Refresh</button>
+      </div>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-      <select id="checkpoint-left" class="bg-[#0d1117] border border-[#30363d] p-2 rounded text-sm"></select>
-      <select id="checkpoint-right" class="bg-[#0d1117] border border-[#30363d] p-2 rounded text-sm"></select>
-    </div>
-    <div class="flex gap-2">
-      <button id="checkpoint-restore" class="bg-emerald-600 hover:bg-emerald-700 px-3 py-2 rounded text-sm">Restore Left</button>
-      <button id="checkpoint-diff" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-2 rounded text-sm">Show Side-by-side Diff</button>
-    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <pre id="diff-left" class="h-60 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2 text-xs"></pre>
-      <pre id="diff-right" class="h-60 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2 text-xs"></pre>
+      <div class="flex flex-col gap-2">
+        <label class="gh-subtle text-xs">Left (restore target)</label>
+        <select id="checkpoint-left" class="gh-select p-3 text-sm"></select>
+      </div>
+      <div class="flex flex-col gap-2">
+        <label class="gh-subtle text-xs">Right (compare against)</label>
+        <select id="checkpoint-right" class="gh-select p-3 text-sm"></select>
+      </div>
     </div>
-    <pre id="diff-unified" class="h-40 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2 text-xs"></pre>
+
+    <div class="flex flex-wrap gap-2">
+      <button id="checkpoint-restore" class="ghost-btn" style="background:#2ea043;border-color:#2ea043;">Restore Left</button>
+      <button id="checkpoint-restore-right" class="ghost-btn" style="background:#34d399;border-color:#34d399;">Restore Right</button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <pre id="diff-left" class="h-60 overflow-auto panel-surface text-xs"></pre>
+      <pre id="diff-right" class="h-60 overflow-auto panel-surface text-xs"></pre>
+    </div>
+    <div class="panel-surface h-40 overflow-auto text-xs" id="diff-unified"></div>
+    <p class="gh-subtle text-xs">Tip: Select a snapshot on the left to restore an older version; select a snapshot on the right to re-apply the current/target version. Restores push the code directly into the editor for all collaborators.</p>
   </div>
 </div>
 
@@ -303,44 +473,127 @@ header {
 </div>
 
 <div id="admin-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-  <div class="w-full max-w-5xl bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-3">
+  <div class="w-full max-w-5xl admin-card p-5 space-y-4">
     <div class="flex items-center justify-between">
-      <h2 class="font-bold">Admin Dashboard</h2>
-      <button id="admin-close" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-1 rounded text-sm">Close</button>
+      <div>
+        <p class="text-xs text-gray-400 uppercase tracking-widest">Control Center</p>
+        <h2 class="text-xl font-bold">Admin Dashboard</h2>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="admin-refresh" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-sm shadow">Refresh Dashboard</button>
+        <button id="admin-close" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-2 rounded text-sm">Close</button>
+      </div>
     </div>
-    <button id="admin-refresh" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-2 rounded text-sm">Refresh Dashboard</button>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-      <pre id="admin-active-users" class="h-48 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2"></pre>
-      <pre id="admin-run-stats" class="h-48 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2"></pre>
-      <pre id="admin-sessions" class="h-48 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2"></pre>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div class="admin-metric">
+        <span class="label">Active Users</span>
+        <span id="admin-active-count" class="value">0</span>
+        <div id="admin-active-names" class="text-xs text-gray-300 space-x-1"></div>
+      </div>
+      <div class="admin-metric">
+        <span class="label">Total Runs</span>
+        <span id="admin-run-total" class="value">0</span>
+        <span class="text-xs text-gray-300">Last output: <span id="admin-run-preview" class="text-gray-100">—</span></span>
+      </div>
+      <div class="admin-metric">
+        <span class="label">Role Changes</span>
+        <span id="admin-role-total" class="value">0</span>
+        <span class="text-xs text-gray-300">Past hour snapshot</span>
+      </div>
+      <div class="admin-metric">
+        <span class="label">Moderation</span>
+        <span id="admin-moderation-total" class="value">0</span>
+        <span class="text-xs text-gray-300">Actions logged</span>
+      </div>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-      <pre id="admin-role-changes" class="h-40 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2"></pre>
-      <pre id="admin-moderation" class="h-40 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2"></pre>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="admin-card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-sm">Runs by User</h3>
+          <span class="pill">Live</span>
+        </div>
+        <canvas id="admin-run-chart" class="h-48"></canvas>
+      </div>
+      <div class="admin-card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-sm">Session Timeline</h3>
+          <span class="pill">Last 12</span>
+        </div>
+        <div id="admin-session-timeline" class="timeline h-48 overflow-auto"></div>
+      </div>
+      <div class="admin-card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-sm">Active Users</h3>
+          <span class="pill">Presence</span>
+        </div>
+        <div id="admin-active-list" class="space-y-2 max-h-48 overflow-auto text-sm"></div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="admin-card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-sm">Role Changes</h3>
+          <span class="pill">Audit</span>
+        </div>
+        <div id="admin-role-changes" class="timeline h-44 overflow-auto text-sm"></div>
+      </div>
+      <div class="admin-card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-sm">Moderation History</h3>
+          <span class="pill">Safe</span>
+        </div>
+        <div id="admin-moderation" class="timeline h-44 overflow-auto text-sm"></div>
+      </div>
     </div>
   </div>
 </div>
 
 <div id="integrations-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-  <div class="w-full max-w-2xl bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-3">
-    <div class="flex items-center justify-between">
-      <h2 class="font-bold">Integrations</h2>
-      <button id="integrations-close" class="bg-[#30363d] hover:bg-[#44536a] px-3 py-1 rounded text-sm">Close</button>
+  <div class="w-full max-w-2xl gh-panel p-5 space-y-4">
+    <div class="gh-header">
+      <div class="gh-title">
+        <svg aria-hidden="true" viewBox="0 0 16 16" fill="#e6edf3"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>
+        <span>Integrations</span>
+      </div>
+      <span class="gh-badge">GitHub style</span>
+      <button id="integrations-close" class="gh-btn px-3 py-2 text-sm" style="padding-inline:14px;">Close</button>
     </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-      <button data-integration="github_pull" class="integration-action bg-[#30363d] hover:bg-[#44536a] p-2 rounded text-sm">Git Pull</button>
-      <button data-integration="github_push" class="integration-action bg-[#30363d] hover:bg-[#44536a] p-2 rounded text-sm">Git Push</button>
-      <button data-integration="gist_export" class="integration-action bg-[#30363d] hover:bg-[#44536a] p-2 rounded text-sm">Gist Export</button>
-      <button data-integration="paste_export" class="integration-action bg-[#30363d] hover:bg-[#44536a] p-2 rounded text-sm">Paste Export</button>
-      <button data-integration="download_zip" class="integration-action bg-[#30363d] hover:bg-[#44536a] p-2 rounded text-sm">Project ZIP</button>
+
+    <div class="gh-buttons">
+      <button data-integration="github_pull" class="integration-action gh-btn">
+        <svg viewBox="0 0 16 16" fill="#58a6ff"><path d="M7.25 1.75a.75.75 0 0 1 1.5 0v7.69l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5A.75.75 0 0 1 4.53 7.22l2.22 2.22z"></path><path d="M3.5 14.25a.75.75 0 0 1 0-1.5h9a.75.75 0 0 1 0 1.5z"></path></svg>
+        Git Pull
+      </button>
+      <button data-integration="github_push" class="integration-action gh-btn">
+        <svg viewBox="0 0 16 16" fill="#58a6ff"><path d="M8.75 14.25a.75.75 0 0 1-1.5 0V6.56L5.03 8.78a.75.75 0 1 1-1.06-1.06l3.5-3.5a.75.75 0 0 1 1.06 0l3.5 3.5a.75.75 0 0 1-1.06 1.06L8.75 6.56z"></path><path d="M3.5 1.75a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1-.75-.75Z"></path></svg>
+        Git Push
+      </button>
+      <button data-integration="gist_export" class="integration-action gh-btn">
+        <svg viewBox="0 0 16 16" fill="#a371f7"><path d="M7.78.08a.75.75 0 0 1 .44 0l7 2a.75.75 0 0 1 0 1.44l-7 2a.75.75 0 0 1-.44 0l-7-2A.75.75 0 0 1 .34 2.08zM2.81 5.05l4.97 1.42V15a.75.75 0 0 1-1.08.67l-3.5-1.75A.75.75 0 0 1 3 13.25V5.05Zm10.38 0V13.2a.75.75 0 0 1-.4.66l-3.5 1.75A.75.75 0 0 1 8.21 15V6.47z"></path></svg>
+        Gist Export
+      </button>
+      <button data-integration="paste_export" class="integration-action gh-btn">
+        <svg viewBox="0 0 16 16" fill="#f0883e"><path d="M7 1.75A.75.75 0 0 1 7.75 1h3.5A.75.75 0 0 1 12 1.75V3h1.25A1.75 1.75 0 0 1 15 4.75v8.5A1.75 1.75 0 0 1 13.25 15h-8.5A1.75 1.75 0 0 1 3 13.25V12H1.75a.75.75 0 0 1-.75-.75v-9.5A.75.75 0 0 1 1.75 1h3.5A.75.75 0 0 1 6 1.75V3h1V1.75Zm-1.5.75h-3v8h2.5a.75.75 0 0 1 .75.75v2.5h8.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25H11v1.25a.75.75 0 0 1-.75.75h-3.5A.75.75 0 0 1 6 6.75V5.5h-.5a.75.75 0 0 1-.75-.75ZM7.5 5h2V2.5h-2Z"></path></svg>
+        Paste Export
+      </button>
+      <button data-integration="download_zip" class="integration-action gh-btn">
+        <svg viewBox="0 0 16 16" fill="#2ea043"><path d="M2.75 2A1.75 1.75 0 0 0 1 3.75v8.5C1 13.44 1.56 14 2.25 14h11.5c.69 0 1.25-.56 1.25-1.25v-8.5C15 3.56 14.44 3 13.75 3H10.5a.75.75 0 0 1 0-1.5h3.25A2.75 2.75 0 0 1 16 3.75v8.5A2.75 2.75 0 0 1 13.25 15H2.75A2.75 2.75 0 0 1 0 12.25v-8.5A2.75 2.75 0 0 1 2.75 1h3.25A.75.75 0 0 1 6.75 2.5H2.75Z"></path><path d="M8 11.5a.75.75 0 0 0 .53-.22l2.75-2.75a.75.75 0 0 0-1.06-1.06L8.75 9.44V2.75a.75.75 0 0 0-1.5 0v6.69L5.78 7.47a.75.75 0 0 0-1.06 1.06l2.75 2.75c.14.14.33.22.53.22Z"></path></svg>
+        Project ZIP
+      </button>
     </div>
-    <pre id="integrations-result" class="h-56 overflow-auto bg-[#0d1117] border border-[#30363d] rounded p-2 text-xs">Examples:
+
+    <div class="gh-body">
+<pre id="integrations-result" class="h-56 overflow-auto text-xs whitespace-pre-wrap">Examples:
 - Git Pull / Git Push: sync with remote repo
 - Gist Export: share current code as GitHub Gist
 - Paste Export: create quick share link
 - Project ZIP: download workspace bundle
 
 Click any action above to run it.</pre>
+    </div>
   </div>
 </div>
 
@@ -455,7 +708,7 @@ const checkpointRefresh = document.getElementById("checkpoint-refresh");
 const checkpointLeft = document.getElementById("checkpoint-left");
 const checkpointRight = document.getElementById("checkpoint-right");
 const checkpointRestore = document.getElementById("checkpoint-restore");
-const checkpointDiff = document.getElementById("checkpoint-diff");
+const checkpointRestoreRight = document.getElementById("checkpoint-restore-right");
 const diffLeft = document.getElementById("diff-left");
 const diffRight = document.getElementById("diff-right");
 const diffUnified = document.getElementById("diff-unified");
@@ -468,11 +721,17 @@ const commentsList = document.getElementById("comments-list");
 const adminModal = document.getElementById("admin-modal");
 const adminClose = document.getElementById("admin-close");
 const adminRefresh = document.getElementById("admin-refresh");
-const adminActiveUsers = document.getElementById("admin-active-users");
-const adminRunStats = document.getElementById("admin-run-stats");
-const adminSessions = document.getElementById("admin-sessions");
+const adminActiveCount = document.getElementById("admin-active-count");
+const adminActiveNames = document.getElementById("admin-active-names");
+const adminRunTotal = document.getElementById("admin-run-total");
+const adminRunPreview = document.getElementById("admin-run-preview");
+const adminRunChartCanvas = document.getElementById("admin-run-chart");
+const adminSessionTimeline = document.getElementById("admin-session-timeline");
+const adminActiveList = document.getElementById("admin-active-list");
 const adminRoleChanges = document.getElementById("admin-role-changes");
 const adminModeration = document.getElementById("admin-moderation");
+const adminRoleTotal = document.getElementById("admin-role-total");
+const adminModerationTotal = document.getElementById("admin-moderation-total");
 const integrationsModal = document.getElementById("integrations-modal");
 const integrationsClose = document.getElementById("integrations-close");
 const integrationsResult = document.getElementById("integrations-result");
@@ -486,6 +745,7 @@ const loginUsername = document.getElementById("login-username");
 const loginPassword = document.getElementById("login-password");
 const loginButton = document.getElementById("login-button");
 const loginStatus = document.getElementById("login-status");
+let adminRunChartInstance = null;
 
 /* ================= ACE EDITOR ================= */
 
@@ -496,6 +756,7 @@ document.head.appendChild(collaboratorStyleTag);
 editor.setTheme("ace/theme/monokai");
 editor.session.setMode("ace/mode/python");
 editor.setOptions({ fontSize: "14px", wrap: true });
+editor.setShowPrintMargin(false);
 editor.setValue("", -1);
 editor.setReadOnly(true);
 
@@ -710,26 +971,87 @@ function renderAdminDashboard(data) {
     clearTimeout(adminRequestTimer);
     adminRequestTimer = null;
   }
+
   const users = data.active_users || [];
   const runStats = data.run_stats || {};
-  const sessions = data.sessions || [];
-  const roleChanges = data.role_changes || [];
-  const moderation = data.moderation || [];
-  adminActiveUsers.textContent = users.length
-    ? `Active Users\n\n${JSON.stringify(users, null, 2)}`
-    : "Active Users\n\nNo active users to show.";
-  adminRunStats.textContent = Object.keys(runStats).length
-    ? `Run Stats\n\n${JSON.stringify(runStats, null, 2)}`
-    : "Run Stats\n\nNo runs yet.";
-  adminSessions.textContent = sessions.length
-    ? `Session Logs\n\n${JSON.stringify(sessions, null, 2)}`
-    : "Session Logs\n\nNo session history yet.";
-  adminRoleChanges.textContent = roleChanges.length
-    ? `Role Changes\n\n${JSON.stringify(roleChanges, null, 2)}`
-    : "Role Changes\n\nNo role changes yet.";
-  adminModeration.textContent = moderation.length
-    ? `Moderation History\n\n${JSON.stringify(moderation, null, 2)}`
-    : "Moderation History\n\nNo moderation actions yet.";
+  const sessions = (data.sessions || []).slice(-12);
+  const roleChanges = (data.role_changes || []).slice(-20);
+  const moderation = (data.moderation || []).slice(-20);
+
+  // Metrics
+  adminActiveCount.textContent = users.length;
+  adminActiveNames.innerHTML = users.map((u) => `<span class="pill">${u.name} (${u.role})</span>`).join(" ") || "<span class='text-gray-500 text-xs'>No active users</span>";
+  adminRunTotal.textContent = runStats.total_runs || 0;
+  adminRunPreview.textContent = (runStats.last_output_preview || "—").toString().slice(0, 50);
+  adminRoleTotal.textContent = roleChanges.length;
+  adminModerationTotal.textContent = moderation.length;
+
+  // Active list
+  adminActiveList.innerHTML = users.length
+    ? users.map((u) => `
+        <div class="timeline-item">
+          <div class="time">${u.role}</div>
+          <div class="text font-semibold">${u.name}</div>
+          <div class="text-xs text-gray-300">ID: ${u.id}</div>
+        </div>
+      `).join("")
+    : "<div class='text-sm text-gray-400'>No active users.</div>";
+
+  // Runs chart
+  const labels = Object.keys(runStats.by_user || {});
+  const values = labels.map((k) => runStats.by_user[k]);
+  if (adminRunChartInstance) adminRunChartInstance.destroy();
+  adminRunChartInstance = new Chart(adminRunChartCanvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Runs",
+        data: values,
+        borderRadius: 6,
+        backgroundColor: "rgba(71,140,255,0.6)",
+        borderColor: "rgba(71,140,255,0.9)"
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#b7c7e6" }, grid: { display: false } },
+        y: { ticks: { color: "#b7c7e6", precision:0 }, grid: { color: "rgba(132,168,223,0.15)" } }
+      }
+    }
+  });
+
+  // Sessions timeline
+  adminSessionTimeline.innerHTML = sessions.length
+    ? sessions.map((s) => `
+        <div class="timeline-item">
+          <div class="time">${s.timestamp || ""}</div>
+          <div class="text">${s.user} • ${s.role} • ${s.status}</div>
+        </div>
+      `).join("")
+    : "<div class='text-sm text-gray-400'>No session history yet.</div>";
+
+  // Role changes
+  adminRoleChanges.innerHTML = roleChanges.length
+    ? roleChanges.map((r) => `
+        <div class="timeline-item">
+          <div class="time">${r.timestamp || ""}</div>
+          <div class="text">${r.actor} ➜ ${r.target} (${r.new_role})</div>
+        </div>
+      `).join("")
+    : "<div class='text-sm text-gray-400'>No role changes yet.</div>";
+
+  // Moderation
+  adminModeration.innerHTML = moderation.length
+    ? moderation.map((m) => `
+        <div class="timeline-item">
+          <div class="time">${m.timestamp || ""}</div>
+          <div class="text">${m.actor} • ${m.action} • ${m.target}</div>
+          <div class="text-xs text-gray-300">${m.details || ""}</div>
+        </div>
+      `).join("")
+    : "<div class='text-sm text-gray-400'>No moderation actions yet.</div>";
 }
 
 function requestAdminDashboardWithTimeout() {
@@ -738,11 +1060,13 @@ function requestAdminDashboardWithTimeout() {
   if (adminRequestTimer) clearTimeout(adminRequestTimer);
   adminRequestTimer = setTimeout(() => {
     if (!adminRequestPending) return;
-    adminActiveUsers.textContent = "Admin dashboard did not respond.\nCheck backend and click Refresh Dashboard.";
-    adminRunStats.textContent = "No response yet.";
-    adminSessions.textContent = "No response yet.";
-    adminRoleChanges.textContent = "No response yet.";
-    adminModeration.textContent = "No response yet.";
+    adminActiveCount.textContent = "–";
+    adminRunTotal.textContent = "–";
+    adminRunPreview.textContent = "No response";
+    adminSessionTimeline.innerHTML = "<div class='text-sm text-gray-400'>No response yet.</div>";
+    adminActiveList.innerHTML = "<div class='text-sm text-gray-400'>No response yet.</div>";
+    adminRoleChanges.innerHTML = "<div class='text-sm text-gray-400'>No response yet.</div>";
+    adminModeration.innerHTML = "<div class='text-sm text-gray-400'>No response yet.</div>";
   }, 2500);
   ws.send(JSON.stringify({ type: "request_admin_dashboard" }));
 }
@@ -787,13 +1111,9 @@ checkpointRestore.addEventListener("click", () => {
   if (!checkpointLeft.value) return;
   ws.send(JSON.stringify({ type: "restore_checkpoint", checkpoint_id: checkpointLeft.value }));
 });
-checkpointDiff.addEventListener("click", () => {
-  if (!checkpointLeft.value || !checkpointRight.value) return;
-  ws.send(JSON.stringify({
-    type: "diff_checkpoints",
-    left_id: checkpointLeft.value,
-    right_id: checkpointRight.value
-  }));
+checkpointRestoreRight.addEventListener("click", () => {
+  if (!checkpointRight.value) return;
+  ws.send(JSON.stringify({ type: "restore_checkpoint", checkpoint_id: checkpointRight.value }));
 });
 
 commentsButton.addEventListener("click", () => {
@@ -823,11 +1143,13 @@ commentRefresh.addEventListener("click", () => ws.send(JSON.stringify({ type: "r
 
 adminButton.addEventListener("click", () => {
   adminModal.classList.remove("hidden");
-  adminActiveUsers.textContent = "Loading active users...";
-  adminRunStats.textContent = "Loading run stats...";
-  adminSessions.textContent = "Loading sessions...";
-  adminRoleChanges.textContent = "Loading role changes...";
-  adminModeration.textContent = "Loading moderation history...";
+  adminActiveCount.textContent = "…";
+  adminRunTotal.textContent = "…";
+  adminRunPreview.textContent = "Loading…";
+  adminSessionTimeline.innerHTML = "<div class='text-sm text-gray-400'>Loading sessions...</div>";
+  adminActiveList.innerHTML = "<div class='text-sm text-gray-400'>Loading active users...</div>";
+  adminRoleChanges.innerHTML = "<div class='text-sm text-gray-400'>Loading role changes...</div>";
+  adminModeration.innerHTML = "<div class='text-sm text-gray-400'>Loading moderation history...</div>";
   requestAdminDashboardWithTimeout();
 });
 adminClose.addEventListener("click", () => adminModal.classList.add("hidden"));
@@ -948,13 +1270,6 @@ ws.onmessage = (event) => {
     case "checkpoints_update":
       checkpoints = data.checkpoints || [];
       refreshCheckpointSelects();
-      if (checkpoints.length >= 2) {
-        ws.send(JSON.stringify({
-          type: "diff_checkpoints",
-          left_id: checkpoints[0].id,
-          right_id: checkpoints[1].id
-        }));
-      }
       break;
 
     case "checkpoint_diff":
@@ -1011,10 +1326,8 @@ ws.onmessage = (event) => {
       aiButton.disabled = false;
       outputConsole.textContent = data.suggestion;
       pendingAiCode = extractCodeBlock(data.suggestion);
-      if (pendingAiCode && role !== "Viewer") {
+      if (role !== "Viewer") {
         applyAiFixButton.classList.remove("hidden");
-      } else {
-        applyAiFixButton.classList.add("hidden");
       }
       break;
 
@@ -1048,11 +1361,13 @@ ws.onmessage = (event) => {
       } else {
           outputConsole.textContent = `Error: ${data.message}`;
           if (adminModal && !adminModal.classList.contains("hidden")) {
-            adminActiveUsers.textContent = `Admin Error:\n${data.message}`;
-            adminRunStats.textContent = "Admin data unavailable.";
-            adminSessions.textContent = "Admin data unavailable.";
-            adminRoleChanges.textContent = "Admin data unavailable.";
-            adminModeration.textContent = "Admin data unavailable.";
+            adminActiveCount.textContent = "!";
+            adminRunTotal.textContent = "!";
+            adminRunPreview.textContent = data.message || "Admin data unavailable.";
+            adminSessionTimeline.innerHTML = "<div class='text-sm text-red-300'>Admin data unavailable.</div>";
+            adminActiveList.innerHTML = "<div class='text-sm text-red-300'>Admin data unavailable.</div>";
+            adminRoleChanges.innerHTML = "<div class='text-sm text-red-300'>Admin data unavailable.</div>";
+            adminModeration.innerHTML = "<div class='text-sm text-red-300'>Admin data unavailable.</div>";
           }
       }
       break;
@@ -1148,7 +1463,7 @@ aiButton.onclick = () => {
   aiButton.disabled = true;
   applyAiFixButton.classList.add("hidden");
   pendingAiCode = null;
-  outputConsole.textContent = "Asking AI for suggestions... (target: under 5s)";
+  outputConsole.textContent = "Asking AI for suggestions... (target: under 6s)";
   ws.send(JSON.stringify({
     type: "ask_ai",
     language: langSelect.value,
@@ -1158,7 +1473,11 @@ aiButton.onclick = () => {
 
 applyAiFixButton.onclick = () => {
   if (!isAuthenticated) return;
-  if (!pendingAiCode || role === "Viewer") return;
+  if (role === "Viewer") return;
+  if (!pendingAiCode) {
+    outputConsole.textContent = "AI didn't return a patch. Please re-run AI Debugger or fix manually.";
+    return;
+  }
   editor.setValue(pendingAiCode, -1);
   applyAiFixButton.classList.add("hidden");
   if (ws.readyState !== WebSocket.OPEN) return;

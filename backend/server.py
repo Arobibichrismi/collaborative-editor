@@ -50,11 +50,12 @@ MAX_CHAT_MESSAGES = 200
 MAX_HISTORY_ITEMS = 300
 TYPING_HISTORY_INTERVAL_SECONDS = 1.5
 AI_MAX_LATENCY_SECONDS = float(os.getenv("COLLABX_AI_MAX_LATENCY_SECONDS", "90"))
+AI_BUDGET_SECONDS = float(os.getenv("COLLABX_AI_BUDGET_SECONDS", "6"))  # soft target for AI latency
 _ollama_timeout_env = os.getenv("COLLABX_OLLAMA_TIMEOUT_SECONDS")
 if _ollama_timeout_env is None or str(_ollama_timeout_env).lower() == "none":
-    OLLAMA_TIMEOUT_SECONDS = None  # no timeout
+    OLLAMA_TIMEOUT_SECONDS = None  # no hard HTTP timeout if explicitly disabled
 else:
-    OLLAMA_TIMEOUT_SECONDS = float(_ollama_timeout_env)
+    OLLAMA_TIMEOUT_SECONDS = float(_ollama_timeout_env or "12")
 DOCKER_SYNTAX_TIMEOUT_SECONDS = float(os.getenv("COLLABX_DOCKER_SYNTAX_TIMEOUT_SECONDS", "3"))
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
@@ -352,13 +353,20 @@ def _build_debug_prompt(language, code, diagnostics):
     )
 
 
-async def _query_ollama(prompt):
+async def _query_ollama(prompt, timeout_seconds=None):
     logging.info("ollama request -> url=%s model=%s", OLLAMA_URL, OLLAMA_MODEL)
     payload = json.dumps({
         "model": OLLAMA_MODEL,
         "prompt": prompt,
         "stream": False
     }).encode("utf-8")
+
+    # Resolve an effective timeout: prefer the caller's budget, then env, else None (blocking).
+    effective_timeout = None
+    if timeout_seconds is not None:
+        effective_timeout = timeout_seconds
+    elif OLLAMA_TIMEOUT_SECONDS is not None:
+        effective_timeout = OLLAMA_TIMEOUT_SECONDS
 
     def run():
         req = urllib.request.Request(
@@ -367,7 +375,7 @@ async def _query_ollama(prompt):
             headers={"Content-Type": "application/json"},
             method="POST"
         )
-        with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT_SECONDS) as res:
+        with urllib.request.urlopen(req, timeout=effective_timeout) as res:
             return json.loads(res.read().decode("utf-8"))
 
     try:
@@ -458,7 +466,12 @@ async def get_ai_suggestion(language, code):
             diagnostics = "Python parser: no syntax errors."
 
     try:
-        ok, detail = await _run_syntax_check_in_docker(language, code)
+        ok, detail = await asyncio.wait_for(
+            _run_syntax_check_in_docker(language, code),
+            timeout=DOCKER_SYNTAX_TIMEOUT_SECONDS + 0.5
+        )
+    except asyncio.TimeoutError:
+        ok, detail = False, f"Syntax check timeout after {DOCKER_SYNTAX_TIMEOUT_SECONDS + 0.5:.1f}s"
     except Exception as e:
         ok, detail = False, f"Syntax check failed: {e}"
 
@@ -468,7 +481,17 @@ async def get_ai_suggestion(language, code):
         diagnostics = f"{diagnostics}\nCompiler output:\n{detail}"
 
     prompt = _build_debug_prompt(language, code, diagnostics)
-    ai_response = await _query_ollama(prompt)
+    elapsed = time.monotonic() - started
+    remaining = max(1.0, min(AI_BUDGET_SECONDS, AI_MAX_LATENCY_SECONDS) - elapsed)
+    ai_response = ""
+    try:
+        ai_response = await asyncio.wait_for(
+            _query_ollama(prompt, timeout_seconds=remaining),
+            timeout=remaining + 0.25  # small cushion
+        )
+    except asyncio.TimeoutError:
+        ai_response = ""
+
     if ai_response:
         return ai_response
 
@@ -487,7 +510,7 @@ async def get_ai_suggestion(language, code):
 
     if language == "python" and "syntax issue found" in diagnostics.lower():
         return (
-            "AI model unavailable. Python fallback:\n"
+            f"AI timed out after ~{int(time.monotonic() - started)}s. Python fallback:\n"
             + diagnostics
             + "\nSuggested fixes:\n"
             "- Check indentation and missing colons.\n"
@@ -495,8 +518,8 @@ async def get_ai_suggestion(language, code):
         )
 
     return (
-        "AI model unavailable, but static checks passed.\n"
-        "No syntax errors detected. If output is wrong, issue is likely logic-related."
+        f"AI timed out after ~{int(time.monotonic() - started)}s. "
+        "Static checks passed; likely a logic issue."
     )
 
 
