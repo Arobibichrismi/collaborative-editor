@@ -49,13 +49,15 @@ project_state = {
 MAX_CHAT_MESSAGES = 200
 MAX_HISTORY_ITEMS = 300
 TYPING_HISTORY_INTERVAL_SECONDS = 1.5
-AI_MAX_LATENCY_SECONDS = float(os.getenv("COLLABX_AI_MAX_LATENCY_SECONDS", "90"))
-AI_BUDGET_SECONDS = float(os.getenv("COLLABX_AI_BUDGET_SECONDS", "6"))  # soft target for AI latency
+# Allow AI jobs to run up to 48 hours by default (can be overridden via env)
+AI_MAX_LATENCY_SECONDS = float(os.getenv("COLLABX_AI_MAX_LATENCY_SECONDS", str(48 * 60 * 60)))
+AI_BUDGET_SECONDS = float(os.getenv("COLLABX_AI_BUDGET_SECONDS", str(48 * 60 * 60)))  # soft target for AI latency
 _ollama_timeout_env = os.getenv("COLLABX_OLLAMA_TIMEOUT_SECONDS")
 if _ollama_timeout_env is None or str(_ollama_timeout_env).lower() == "none":
     OLLAMA_TIMEOUT_SECONDS = None  # no hard HTTP timeout if explicitly disabled
 else:
-    OLLAMA_TIMEOUT_SECONDS = float(_ollama_timeout_env or "12")
+    # Default to 48 hours if not provided, enabling very long-running model calls.
+    OLLAMA_TIMEOUT_SECONDS = float(_ollama_timeout_env or str(48 * 60 * 60))
 DOCKER_SYNTAX_TIMEOUT_SECONDS = float(os.getenv("COLLABX_DOCKER_SYNTAX_TIMEOUT_SECONDS", "3"))
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
